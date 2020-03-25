@@ -1,0 +1,11 @@
+*.do
+*.gdx
+*.gpr
+*.gpy
+*.log
+*.lst
+*.lxi
+*.sublime*
+*.tmp
+*.~*
+Sanbox*
