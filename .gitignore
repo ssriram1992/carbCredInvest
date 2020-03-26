@@ -6,6 +6,7 @@
 *.lst
 *.lxi
 *.sublime*
+.*.swp
 *.tmp
 *.~*
 Sanbox*
