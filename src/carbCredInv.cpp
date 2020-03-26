@@ -23,7 +23,7 @@ void cci::init(LeadLocs &L) {
 };
 
 void cci::increaseVal(LeadLocs &L, const LeaderVars start,
-                       const unsigned int val, const bool startnext)
+                      const unsigned int val, const bool startnext)
 /**
  * Should be called ONLY after initializing @p L by calling cci::init
  */
@@ -37,7 +37,7 @@ void cci::increaseVal(LeadLocs &L, const LeaderVars start,
 }
 
 void cci::decreaseVal(LeadLocs &L, const LeaderVars start,
-                       const unsigned int val, const bool startnext)
+                      const unsigned int val, const bool startnext)
 /**
  * Should be called ONLY after initializing @p L by calling cci::init
  */
@@ -492,7 +492,7 @@ ostream &cci::operator<<(ostream &ost, const cci::LeaderVars l) {
 
 template <unsigned int num_scen>
 cci::FollPar<num_scen> operator+(const cci::FollPar<num_scen> &F1,
-                                  const cci::FollPar<num_scen> &F2) {
+                                 const cci::FollPar<num_scen> &F2) {
   std::vector<double> cq, cl, ec;
   std::array<std::vector<double>, num_scen> cap;
   std::vector<std::string> nm;

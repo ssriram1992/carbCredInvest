@@ -17,16 +17,18 @@
 
 namespace cci {
 
-	template <unsigned int N> using gamsSet = const std::array<const std::string, N>;
-	template <unsigned int N> using gamsNumSet = const std::array<const unsigned int, N>;
-template<class t> using params = std::map<t, double>; 
-template <class t, class u> using params2 = std::map < std::tuple<t,u> , double>;
-template <class t, class u, class v> using params3 = std::map < std::tuple<t,u,v> , double>;
+template <unsigned int N>
+using gamsSet = const std::array<const std::string, N>;
+template <unsigned int N>
+using gamsNumSet = const std::array<const unsigned int, N>;
+template <class t> using params = std::map<t, double>;
+template <class t, class u> using params2 = std::map<std::tuple<t, u>, double>;
+template <class t, class u, class v>
+using params3 = std::map<std::tuple<t, u, v>, double>;
 
-	gamsSet<3> countries {"c1", "c2", "c3"};
-	gamsSet<3> producers {"p1", "p2", "p3"};
-	gamsSet<3> prodtypes {"c1", "c2", "c3"};
-
+gamsSet<3> countries{"c1", "c2", "c3"};
+gamsSet<3> producers{"p1", "p2", "p3"};
+gamsSet<3> prodtypes{"c1", "c2", "c3"};
 
 /// @brief Stores the parameters of the follower in a country model
 template <unsigned int num_scen> struct FollPar {
@@ -84,7 +86,7 @@ template <unsigned int num_scen> struct LeadAllPar {
   unsigned int n_followers; ///< Number of followers in the country
   std::string name;         ///< Country Name
   cci::FollPar<num_scen> FollowerParam =
-      {};                         ///< A struct to hold Follower Parameters
+      {};                        ///< A struct to hold Follower Parameters
   cci::LeadPar LeaderParam = {}; ///< A struct to hold Leader Parameters
   std::array<cci::DemPar, num_scen> DemandParam = {
       {}}; ///< A struct to hold Demand Parameters
@@ -172,10 +174,10 @@ private:
     for (unsigned int i = 0; i < this->getNcountries(); ++i) {
       LeadLocs &Loc = this->Locations.at(i);
       cci::decreaseVal(Loc, cci::LeaderVars::ConvHullDummy,
-                        Loc[cci::LeaderVars::ConvHullDummy + 1] -
-                            Loc[cci::LeaderVars::ConvHullDummy]);
+                       Loc[cci::LeaderVars::ConvHullDummy + 1] -
+                           Loc[cci::LeaderVars::ConvHullDummy]);
       cci::increaseVal(Loc, cci::LeaderVars::ConvHullDummy,
-                        this->convexHullVariables.at(i));
+                       this->convexHullVariables.at(i));
     }
   };
   virtual void postfinalize() override{};
@@ -310,7 +312,7 @@ std::ostream &operator<<(std::ostream &ost, cci::prn l);
 
 template <unsigned int num_scen>
 cci::FollPar<num_scen> operator+(const cci::FollPar<num_scen> &F1,
-                                  const cci::FollPar<num_scen> &F2);
+                                 const cci::FollPar<num_scen> &F2);
 
 /*
 
@@ -381,7 +383,7 @@ void cci::EPEC<num_scen>::make_obj_leader(
 template <unsigned int num_scen>
 cci::EPEC<num_scen> &
 cci::EPEC<num_scen>::addCountry(cci::LeadAllPar<num_scen> Params,
-                                 const unsigned int addnlLeadVars) {
+                                const unsigned int addnlLeadVars) {
   if (this->finalized)
     throw std::string(
         "Error in cci::EPEC<num_scen>::addCountry: EPEC object "
@@ -528,7 +530,7 @@ void cci::EPEC<num_scen>::make_LL_QP(
         *Foll, ///< Non-owning pointer to the Follower QP_Param object
     const cci::LeadLocs
         &Loc ///< LeadLocs object for accessing different leader locations.
-    ) const noexcept
+) const noexcept
 /**
  * @brief Makes Lower Level Quadratic Programs
  * @details Sets the constraints and objective for the lower level problem
@@ -625,14 +627,14 @@ void cci::EPEC<num_scen>::make_LL_LeadCons(
         &LeadCons,      ///< The LHS matrix of leader constraints (for output)
     arma::vec &LeadRHS, ///< RHS vector for leader constraints (for output)
     const LeadAllPar<num_scen> &Params, ///< All country specific parameters
-    const cci::LeadLocs &Loc,          ///< Location of variables
+    const cci::LeadLocs &Loc,           ///< Location of variables
     const unsigned int import_lim_cons, ///< Does a constraint on import limit
                                         ///< exist or no limit?
     const unsigned int export_lim_cons, ///< Does a constraint on export limit
                                         ///< exist or no limit?
     const unsigned int consum_lim_cons  ///< Does a constraint on consumption
                                         ///< limit exist or no limit?
-    ) const noexcept
+) const noexcept
 /**
  * Makes the leader level constraints for a country.
  */
@@ -681,7 +683,7 @@ void cci::EPEC<num_scen>::make_LL_LeadCons(
 
 template <unsigned int num_scen>
 void cci::EPEC<num_scen>::make_MC_cons(arma::sp_mat &MCLHS,
-                                        arma::vec &MCRHS) const
+                                       arma::vec &MCRHS) const
 /** @brief Returns leader's Market clearing constraints in matrix form
  * @details
  */
@@ -715,21 +717,19 @@ bool cci::EPEC<num_scen>::dataCheck(
     const bool
         chkcountries_LL, ///< Checks if cci::EPEC<num_scen>::countries_LL has
     ///< size @p n
-    const bool
-        chkMC_QP, ///< Checks if cci::EPEC<num_scen>::MC_QP has size @p n
+    const bool chkMC_QP, ///< Checks if cci::EPEC<num_scen>::MC_QP has size @p n
     const bool chkLeadConses, ///< Checks if cci::EPEC<num_scen>::LeadConses
                               ///< has size @p n
     const bool chkLeadRHSes,  ///< Checks if cci::EPEC<num_scen>::LeadRHSes has
                               ///< size @p n
     const bool chkLocations,  ///< Checks if cci::EPEC<num_scen>::Locations has
                               ///< size @p n
-    const bool
-        chkLeaderLocations, ///< Checks if cci::EPEC<num_scen>::LeaderLocations
-                            ///< has
+    const bool chkLeaderLocations, ///< Checks if
+                                   ///< cci::EPEC<num_scen>::LeaderLocations has
     ///< size @p n and cci::EPEC<num_scen>::nVarinEPEC is set
     const bool chkLeadObjec ///< Checks if cci::EPEC<num_scen>::LeadObjec has
                             ///< size @p n
-    ) const
+) const
 /**
  * Checks the data in cci::EPEC object, based on checking flags, @p n is the
  * number of countries in the cci::EPEC object.
@@ -758,7 +758,7 @@ bool cci::EPEC<num_scen>::dataCheck(
 
 template <unsigned int num_scen>
 unsigned int cci::EPEC<num_scen>::getPosition(const unsigned int countryCount,
-                                               const cci::LeaderVars var) const
+                                              const cci::LeaderVars var) const
 /**
  * @brief Gets position of a variable in a country.
  */
@@ -772,7 +772,7 @@ unsigned int cci::EPEC<num_scen>::getPosition(const unsigned int countryCount,
 
 template <unsigned int num_scen>
 unsigned int cci::EPEC<num_scen>::getPosition(const std::string countryName,
-                                               const cci::LeaderVars var) const
+                                              const cci::LeaderVars var) const
 /**
  * @brief Gets position of a variable in a country given the country name and
  * the variable.
@@ -808,15 +808,14 @@ cci::EPEC<num_scen> &cci::EPEC<num_scen>::unlock()
 
 template <unsigned int num_scen>
 std::unique_ptr<GRBModel>
-cci::EPEC<num_scen>::Respond(const std::string name,
-                              const arma::vec &x) const {
+cci::EPEC<num_scen>::Respond(const std::string name, const arma::vec &x) const {
   return this->Game::EPEC::Respond(this->name2nos.at(name), x);
 }
 //
 
 template <unsigned int num_scen>
 void cci::EPEC<num_scen>::write(const std::string filename,
-                                 const unsigned int i, bool append) const {
+                                const unsigned int i, bool append) const {
   std::ofstream file;
   file.open(filename, append ? ios::app : ios::out);
   const LeadAllPar<num_scen> &Params = this->AllLeadPars.at(i);
@@ -829,8 +828,7 @@ void cci::EPEC<num_scen>::write(const std::string filename,
 }
 
 template <unsigned int num_scen>
-void cci::EPEC<num_scen>::write(const std::string filename,
-                                 bool append) const {
+void cci::EPEC<num_scen>::write(const std::string filename, bool append) const {
   if (append) {
     std::ofstream file;
     file.open(filename, ios::app);
@@ -845,7 +843,7 @@ void cci::EPEC<num_scen>::write(const std::string filename,
 
 template <unsigned int num_scen>
 void cci::EPEC<num_scen>::writeSolution(const int writeLevel,
-                                         std::string filename) const {
+                                        std::string filename) const {
   /**
    * @brief Writes the computed Nash Equilibrium in the EPEC instance
    * @p writeLevel is an integer representing the write configuration. 0: only
@@ -862,16 +860,15 @@ void cci::EPEC<num_scen>::writeSolution(const int writeLevel,
       // this->writeSolutionJSON(filename, this->sol_x, this->sol_z);
       ;
   } else {
-    cerr
-        << "Error in cci::EPEC<num_scen>::writeSolution: no solution to write."
-        << '\n';
+    cerr << "Error in cci::EPEC<num_scen>::writeSolution: no solution to write."
+         << '\n';
   }
 }
 
 template <unsigned int num_scen>
 void cci::EPEC<num_scen>::WriteCountryMCprice(const std::string filename,
-                                               const arma::vec x,
-                                               const bool append) const {
+                                              const arma::vec x,
+                                              const bool append) const {
   using cci::prn;
   std::ofstream file;
   file.open(filename, append ? ios::app : ios::out);
@@ -900,9 +897,9 @@ void cci::EPEC<num_scen>::WriteCountryMCprice(const std::string filename,
 
 template <unsigned int num_scen>
 void cci::EPEC<num_scen>::WriteCountry(const unsigned int i,
-                                        const std::string filename,
-                                        const arma::vec x,
-                                        const bool append) const {
+                                       const std::string filename,
+                                       const arma::vec x,
+                                       const bool append) const {
   // if (!lcp) return;
   // const LeadLocs& Loc = this->Locations.at(i);
   using cci::prn;
@@ -974,9 +971,9 @@ void cci::EPEC<num_scen>::WriteCountry(const unsigned int i,
 //
 template <unsigned int num_scen>
 void cci::EPEC<num_scen>::WriteFollower(const unsigned int i,
-                                         const unsigned int j,
-                                         const std::string filename,
-                                         const arma::vec x) const {
+                                        const unsigned int j,
+                                        const std::string filename,
+                                        const arma::vec x) const {
   using cci::prn;
   std::ofstream file;
   file.open(filename, ios::app);
@@ -1026,7 +1023,7 @@ template <unsigned int num_scen>
 bool cci::EPEC<num_scen>::ParamValid(
     const LeadAllPar<num_scen>
         &Params ///< Object whose validity is to be tested
-    ) const
+) const
 /**
  * @brief Checks the Validity of cci::LeadAllPar object
  * @details Checks the following:
@@ -1063,7 +1060,7 @@ bool cci::EPEC<num_scen>::ParamValid(
 
 template <unsigned int num_scen>
 std::ostream &cci::operator<<(std::ostream &ost,
-                               const cci::LeadAllPar<num_scen> P) {
+                              const cci::LeadAllPar<num_scen> P) {
   ost << "\n\n";
   ost << "***************************"
       << "\n";
@@ -1089,7 +1086,7 @@ std::ostream &cci::operator<<(std::ostream &ost,
 
 template <unsigned int num_scen>
 std::ostream &cci::operator<<(std::ostream &ost,
-                               const cci::FollPar<num_scen> P) {
+                              const cci::FollPar<num_scen> P) {
   ost << "Follower Parameters: " << '\n';
   ost << "********************" << '\n';
   ost << cci::prn::label << "Linear Costs"
