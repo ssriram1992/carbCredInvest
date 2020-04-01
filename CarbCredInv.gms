@@ -26,13 +26,13 @@ Alias(prodTypes, pt);
 Alias(producers, pp);
 
 Parameters
-LinCost(countries, prodTypes) 										"Linear cost of production"
-QuadCost(countries, prodTypes)										"Quadratic cost of production"
-LinInvCost(countries)															"Cost of investment in renewables"
-QuadInvCost(countries)														"Cost of investment in renewables"
+LinCost(countries, prodTypes) 							"Linear cost of production"
+QuadCost(countries, prodTypes)							"Quadratic cost of production"
+LinInvCost(countries)									"Cost of investment in renewables"
+QuadInvCost(countries)									"Cost of investment in renewables"
 InitCapacity(countries, producers, prodTypes)			"Initial capacity"
-InitCarb(countries, producers)										"Initial carbon credit allocation"
-CarbonCost(prodTypes)															"Number of carbon credits consumed per unit of production"
+InitCarb(countries, producers)							"Initial carbon credit allocation"
+CarbonCost(prodTypes)									"Number of carbon credits consumed per unit of production"
 DemInt(countries)                                 "Intercept of the demand curve"
 DemSlope(countries)                               "Slope of the demand curve"
 ;

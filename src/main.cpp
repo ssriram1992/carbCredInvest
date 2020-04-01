@@ -1,9 +1,13 @@
-#include "bondad.h"
+#include "carbCredInv.h"
 #include <boost/log/core.hpp>
 #include <boost/log/expressions.hpp>
 #include <boost/log/trivial.hpp>
 
 #define NUM_SCEN 1
+
+gamsSet<3> countries{"c1", "c2", "c3"};
+gamsSet<3> producers{"p1", "p2", "p3"};
+gamsSet<3> prodtypes{"c1", "c2", "c3"};
 
 int main() {
   /*

@@ -1,6 +1,5 @@
 # File name and output name
-EPEC_HOME=/home/sanksrir/Documents/code/EPEC
-# EPEC_HOME=/home/sriram/Dropbox/code/EPEC/code
+EPEC_HOME=/home/sriram/code/EPECstuff/EPECsolve
 SRC=$(EPEC_HOME)/src
 OBJ=$(EPEC_HOME)/obj
 
@@ -9,45 +8,35 @@ FILEEPEC=$(OBJ)/LCPtoLP.o $(OBJ)/Games.o $(OBJ)/Utils.o
 ARGS=
 
 # Logging
-BOOST_HOME=/home/x86_64-unknown-linux_ol7-gnu/boost-1.70.0
-# BOOST_HOME=/home/sriram/Install/boost_1_70_0
+BOOST_HOME=/usr/local/lib
 BOOST_LIB_D=$(BOOST_HOME)/lib/libboost_
-# BOOST_LIB_D=$(BOOST_HOME)/stage/lib/libboost_
-# BOOSTLIB=$(BOOST_LIB_D)log.a $(BOOST_LIB_D)log_setup.a $(BOOST_LIB_D)unit_test_framework.a $(BOOST_LIB_D)system.a $(BOOST_LIB_D)thread.a $(BOOST_LIB_D)chrono.a  -lpthread $(BOOST_LIB_D)prg_exec_monitor.a
 BOOSTLIB=$(BOOST_LIB_D)unit_test_framework.a $(BOOST_LIB_D)program_options.a  $(BOOST_LIB_D)log.a $(BOOST_LIB_D)log_setup.a $(BOOST_LIB_D)system.a $(BOOST_LIB_D)thread.a $(BOOST_LIB_D)chrono.a  -lpthread $(BOOST_LIB_D)prg_exec_monitor.a
-BOOSTOPT=-I $(BOOST_HOME)/include 
-# BOOSTOPT=-I $(BOOST_HOME) 
+BOOSTOPT=
 
 # Armadillo stuff
 ARMA=/opt/armadillo-code
 ARMAINC=-I $(ARMA)/include
-# ARMAINC=
-ARMALIB=-lblas -llapack
-# ARMALIB=-larmadillo
+ARMALIB=-larmadillo
 ARMAOPT=$(ARMAINC) $(ARMALIB)
 
 # Gurobi stuff
-# GUR=/opt/gurobi811/linux64
-GUR=/home/gurobi/8.1.0/linux64
+GUR=/opt/gurobi901/linux64
 GURINC=-I $(GUR)/include 
-# GURLIB=-L $(GUR)/lib -lgurobi_c++ -lgurobi80 -lm 
-GURLIB= $(GUR)/lib/libgurobi_c++.a $(GUR)/lib/libgurobi81.so -lm  
-# GURLIB=-L $(GUR)/lib -lgurobi_c++ -lgurobi81 -lm 
+GURLIB= $(GUR)/lib/libgurobi_c++.a $(GUR)/lib/libgurobi90.so -lm  
 GUROPT=$(GURINC)
 
 # Generic objects not requiring changes
 GCC=g++
-# GCC=g++-4.8
 OTHEROPTS= -O3 -std=c++11 -I $(SRC) -I $(EPEC_HOME)/include
 OPTS= $(GUROPT) $(ARMAOPT) $(OTHEROPTS) $(BOOSTOPT) 
 LINKOPTS=$(GURLIB) $(ARMALIB) $(BOOSTLIB)
 
-bienestarPNE: bin/bienestarPNE
-	bin/bienestarPNE
+carbCredInv_PNE: bin/carbCredInv_PNE
+	bin/carbCredInv_PNE
 
-bin/bienestarPNE: obj/bondad.o obj/bienestar.o
+bin/carbCredInv_PNE: obj/carbCredInv.o obj/main.o
 	@echo Linking...
-	$(GCC) $(FILEEPEC) obj/bienestar.o obj/bondad.o  $(OPTS) $(LINKOPTS) -o bin/bienestarPNE
+	$(GCC) $(FILEEPEC) obj/main.o obj/carbCredInv.o  $(OPTS) $(LINKOPTS) -o bin/carbCredInv_PNE
 
 
 EPECtest: test/EPEC
@@ -57,7 +46,7 @@ test/EPEC.o:
 	$(GCC) -c test/EPEC.cpp $(OPTS) -o test/EPEC.o
 
 
-test/EPEC: test/EPEC.o obj/bienestar.o obj/bondad.o
+test/EPEC: test/EPEC.o obj/main.o obj/carbCredInv.o
 	$(GCC) $(FILEEPEC) test/EPEC.o  $(BOOSTOPT) $(BOOSTLIB) $(OPTS) $(LINKOPTS) -o test/EPEC
 
 clean:
@@ -65,17 +54,11 @@ clean:
 	rm -rf bin/*
 
 format:
-	@clang-format -style=llvm -i src/*.cpp
-	@clang-format -style=llvm -i src/*.h
-
-docSimple:
-	doxygen docs/refConf
-
-docDetailed:
-	doxygen docs/refDetConf
+	@clang-format-9 -style=llvm -i src/*.cpp
+	@clang-format-9 -style=llvm -i src/*.h
 
 edit: 
-	vim -p src/Bienestar.cpp src/Bondad.cpp
+	vim -p src/main.cpp src/carbCredInv.cpp src/carbCredInv.h
 
 tag:
 	ctags src/*.cpp src/*.h
@@ -86,10 +69,10 @@ install:
 	mkdir -p bin
 	mkdir -p obj
 
-obj/bondad.o: src/bondad.h src/Bondad.cpp
-	$(GCC) -c src/Bondad.cpp $(OPTS) -o obj/bondad.o
+obj/carbCredInv.o: src/carbCredInv.h src/carbCredInv.cpp
+	$(GCC) -c src/carbCredInv.cpp $(OPTS) -o obj/carbCredInv.o
 
 
-obj/bienestar.o: src/Bienestar.cpp
-	$(GCC) -c src/Bienestar.cpp $(OPTS) -o obj/bienestar.o
+obj/main.o: src/main.cpp
+	$(GCC) -c src/main.cpp $(OPTS) -o obj/main.o
 

@@ -1,7 +1,7 @@
 #pragma once
 
 /**
- * @file src/bienestar.h Using EPECSolve to solve problems arising in
+ * @file src/carbCredInv.h Using EPECSolve to solve problems arising in
  * international energy markets with climate-conscious
  * countries.
  */
@@ -13,56 +13,40 @@
 #include <gurobi_c++.h>
 #include <iostream>
 #include <memory>
-#include <tuple>
+#include <set>
 
 namespace cci {
 
-template <unsigned int N>
-using gamsSet = const std::array<const std::string, N>;
-template <unsigned int N>
-using gamsNumSet = const std::array<const unsigned int, N>;
-template <class t> using params = std::map<t, double>;
-template <class t, class u> using params2 = std::map<std::tuple<t, u>, double>;
-template <class t, class u, class v>
-using params3 = std::map<std::tuple<t, u, v>, double>;
-
-gamsSet<3> countries{"c1", "c2", "c3"};
-gamsSet<3> producers{"p1", "p2", "p3"};
-gamsSet<3> prodtypes{"c1", "c2", "c3"};
+extern const std::vector<std::string> dirtyEnergy;
+extern const std::vector<std::string> cleanEnergy;
+/// cci::energy should contain everything in dirtyEnergy and cleanEnergy
+extern const std::vector<std::string> energy;
+// const std::vector<std::string> dirtyEnergy {"coal", "gas"};
+// const std::vector<std::string> cleanEnergy {"wind", "solar"};
 
 /// @brief Stores the parameters of the follower in a country model
 template <unsigned int num_scen> struct FollPar {
-  std::vector<double> costs_quad =
-      {}; ///< Quadratic coefficient of i-th follower's cost. Size of this
-          ///< std::vector should be equal to n_followers
-  std::vector<double> costs_lin =
-      {}; ///< Linear  coefficient of i-th follower's cost. Size of this
-          ///< std::vector should be equal to n_followers
-  std::array<std::vector<double>, num_scen>
-      capacities; ///< Production capacity of each follower. Size of this
-                  ///< std::vector should be equal to n_followers
-  std::vector<double> emission_costs =
-      {}; ///< Emission costs for unit quantity of the fuel. Emission costs
-          ///< feature only on the leader's problem
-  std::vector<std::string> names = {}; ///< Optional Names for the Followers.
-  FollPar(std::vector<double> costs_quad_, std::vector<double> costs_lin_,
-          std::array<std::vector<double>, num_scen> capacities_,
-          std::vector<double> emission_costs_ = {},
-          std::vector<std::string> names_ = {})
-      : costs_quad{costs_quad_}, costs_lin{costs_lin_},
-        emission_costs{emission_costs_}, names{names_} {
-    for (unsigned int i = 0; i < num_scen; ++i)
-      capacities[i] = capacities_[i];
-  }
-};
+  /// For Eaxh prodType, linear and quadratic cost of production
+  std::map<std::string, std::pair<double, double>> productionCosts;
+  /// Production capacity of each prodType
+  std::map<std::string, double> capacities;
+  /// Renewable capacity adjustment for each scenario
+  std::array<double, num_scen> renewCapAdjust;
+  ///	Linear and QUadratic Investment costs for renewables
+  std::pair<double, double> investmentCosts{0, 0};
+  /// Emission costs for unit quantity of the fuel. Emission costs feature only
+  /// on the leader's problem
+  std::map<std::string, double> emissionCosts;
 
-/// @brief Stores the parameters of the demand curve in a country model
-struct DemPar {
-  double alpha = 100; ///< Intercept of the demand curve. Written as: Price =
-                      ///< alpha - beta*(Total quantity in domestic market)
-  double beta = 2; ///< Slope of the demand curve. Written as: Price = alpha -
-                   ///< beta*(Total quantity in domestic market)
-  DemPar(double alpha = 100, double beta = 2) : alpha{alpha}, beta{beta} {};
+  double carbonCreditInit = 0;
+  std::string name = {}; ///< Optional Names for the Followers.
+  FollPar() {
+    for (const auto &x : cci::energy) {
+      this->productionCosts[x] = {0, 0};
+      this->capacities[x] = 0;
+      this->emissionCosts[x] = 0;
+    }
+  }
 };
 
 /// @brief Stores the parameters of the leader in a country model
@@ -73,33 +57,24 @@ struct LeadPar {
                             ///< set the value as -1;
   double consum_limit =
       0; ///< Government does not want the price to exceed this limit
-  double carbCredit_init = 100;
+  double carbCreditInit = 100;
 
   LeadPar(double imp_lim = -1, double exp_lim = -1, double consum_limit = 0,
           double carbCred = 0)
       : import_limit{imp_lim}, export_limit{exp_lim},
-        consum_limit{consum_limit}, carbCredit_init{carbCred} {}
+        consum_limit{consum_limit}, carbCreditInit{carbCred} {}
 };
 
 /// @brief Stores the parameters of a country model
 template <unsigned int num_scen> struct LeadAllPar {
   unsigned int n_followers; ///< Number of followers in the country
   std::string name;         ///< Country Name
-  cci::FollPar<num_scen> FollowerParam =
-      {};                        ///< A struct to hold Follower Parameters
+  std::vector<cci::FollPar<num_scen>> FollowerParam =
+      {};                        ///< A vector to hold Follower Parameters
   cci::LeadPar LeaderParam = {}; ///< A struct to hold Leader Parameters
-  std::array<cci::DemPar, num_scen> DemandParam = {
-      {}}; ///< A struct to hold Demand Parameters
+  std::array<std::pair<double, double>, num_scen> DemandParam = {
+      {}}; ///< To hold Demand Parameters - intercept and slope
   std::array<double, num_scen> scenProb = {{}};
-  LeadAllPar(unsigned int n_foll, std::string name, cci::FollPar<num_scen> FP,
-             std::array<cci::DemPar, num_scen> DP, cci::LeadPar LP,
-             std::array<double, num_scen> probab)
-      : n_followers{n_foll}, name{name}, FollowerParam{FP}, LeaderParam{LP} {
-    for (unsigned int i = 0; i < num_scen; ++i) {
-      DemandParam[i] = DP[i];
-      scenProb[i] = probab[i];
-    }
-  }
 };
 
 /// @brief Stores a single Instance
@@ -122,12 +97,10 @@ template <unsigned int num_scen> struct EPECInstance {
 
 enum class LeaderVars {
   Followers,
-  Foll2Cpr,
-  CarbPrice,
   CarbExp,
   CarbImp,
-  EnergExpScen,
-  EnergImpScen,
+  CarbPrice,
+  TotInv,
   DualVar,
   ConvHullDummy,
   End
@@ -135,12 +108,6 @@ enum class LeaderVars {
 
 template <unsigned int num_scen>
 std::ostream &operator<<(std::ostream &ost, const FollPar<num_scen> P);
-
-std::ostream &operator<<(std::ostream &ost, const DemPar P);
-
-template <int num_scen>
-std::ostream &operator<<(std::ostream &ost,
-                         const std::array<DemPar, num_scen> P);
 
 std::ostream &operator<<(std::ostream &ost, const LeadPar P);
 
@@ -181,7 +148,7 @@ private:
     }
   };
   virtual void postfinalize() override{};
-  virtual void initializeSoln(arma::vec &init_x) const override;
+  virtual void initializeSoln(arma::vec &init_x) const;
   // override;
 
 public:
@@ -189,14 +156,19 @@ public:
   static constexpr double social_cost_of_carbon{1000};
 
 private:
-  static constexpr unsigned int LL_MC_count = num_scen;
-  static constexpr unsigned int FollVarCount{1 + 3 * num_scen};
+  static constexpr unsigned int LL_MC_count =
+      0; // No market clearing for follower
 
-  static constexpr unsigned int FollCarb{0};
-  static constexpr unsigned int FollProdScen{1};
-  static constexpr unsigned int FollCbuyScen{1 + num_scen};
-  static constexpr unsigned int FollCselScen{1 + 2 * num_scen};
-  static constexpr unsigned int FollEnd{1 + 3 * num_scen};
+  static constexpr unsigned int FollInv{1};
+  static constexpr unsigned int FollProd{cci::cleanEnergy.size() +
+                                         cci::dirtyEnergy.size() * num_scen};
+  static constexpr unsigned int FollCarbBuy{1};
+  static constexpr unsigned int FollCarbSel{1};
+  static constexpr unsigned int FollEnd{1 + cci::cleanEnergy.size() +
+                                        cci::dirtyEnergy.size() * num_scen + 1 +
+                                        1 - 1};
+
+  static constexpr unsigned int FollVarCount{this->FollEnd};
 
   std::vector<LeadAllPar<num_scen>> AllLeadPars =
       {}; ///< The parameters of each leader in the EPEC game
@@ -210,13 +182,6 @@ private:
   std::vector<arma::sp_mat>
       LeadConses{};                   ///< Stores each leader's constraint LHS
   std::vector<arma::vec> LeadRHSes{}; ///< Stores each leader's constraint RHS
-
-  bool dataCheck(const bool chkAllLeadPars = true,
-                 const bool chkcountriesLL = true, const bool chkMC_QP = true,
-                 const bool chkLeadConses = true,
-                 const bool chkLeadRHSes = true, const bool chkLocations = true,
-                 const bool chkLeaderLocations = true,
-                 const bool chkLeadObjec = true) const;
 
   // Super low level
   /// Checks that the parameter given to add a country is valid. Does not have
@@ -257,10 +222,7 @@ public: // Attributes
   ///@brief %cci a Standard Nash-Cournot game within a country
   EPEC &addCountry(
       /// The Parameter structure for the leader
-      LeadAllPar<num_scen> Params,
-      /// Create columns with 0s in it. To handle additional dummy leader
-      /// variables.
-      const unsigned int addnlLeadVars = 0);
+      LeadAllPar<num_scen> Params);
 
   unsigned int getPosition(const unsigned int countryCount,
                            const LeaderVars var = LeaderVars::Followers) const;
@@ -382,8 +344,8 @@ void cci::EPEC<num_scen>::make_obj_leader(
 
 template <unsigned int num_scen>
 cci::EPEC<num_scen> &
-cci::EPEC<num_scen>::addCountry(cci::LeadAllPar<num_scen> Params,
-                                const unsigned int addnlLeadVars) {
+cci::EPEC<num_scen>::addCountry(cci::LeadAllPar<num_scen> Params) {
+  // const unsigned int addnlLeadVars) {
   if (this->finalized)
     throw std::string(
         "Error in cci::EPEC<num_scen>::addCountry: EPEC object "
@@ -401,44 +363,37 @@ cci::EPEC<num_scen>::addCountry(cci::LeadAllPar<num_scen> Params,
     cerr << "Exception: Error in cci::EPEC<num_scen>::addCountry: " << e.what()
          << '\n';
   }
+
   if (!noError)
     return *this;
 
-  constexpr unsigned int LeadVars = num_scen + 3 + 2 * num_scen;
-  // C2Price - one per scenario, CarbonPrice, CarbExp, CarbImp - 1 each,
-  // EnergyExpScen, EnergyImpScen - one  per scenario
+  constexpr unsigned int LeadVars = 4;
+  // One each for Total Carbon imported, total carbon exported, Carbon price set
+  // and total renewable investment in the country
 
   LeadLocs Loc;
   cci::init(Loc);
 
   // Allocate so much space for each of these types of variables
   // For follower's carbon purchase from government.
-  cci::increaseVal(Loc, LeaderVars::Followers, Params.n_followers);
-  // Follower production in each scenario
-  cci::increaseVal(Loc, LeaderVars::Followers, Params.n_followers * num_scen);
-  // Follower Carbon selling in each scenario 2nd stage
-  cci::increaseVal(Loc, LeaderVars::Followers, Params.n_followers * num_scen);
-  // Follower carbon buying in each scenario 2nd stage
-  cci::increaseVal(Loc, LeaderVars::Followers, Params.n_followers * num_scen);
-
-  cci::increaseVal(Loc, LeaderVars::Foll2Cpr, num_scen);
-  cci::increaseVal(Loc, LeaderVars::CarbPrice, 1);
+  cci::increaseVal(Loc, LeaderVars::Followers,
+                   Params.n_followers * this->FollVarCount);
   cci::increaseVal(Loc, LeaderVars::CarbExp, 1);
   cci::increaseVal(Loc, LeaderVars::CarbImp, 1);
-  cci::increaseVal(Loc, LeaderVars::EnergExpScen, num_scen);
-  cci::increaseVal(Loc, LeaderVars::EnergImpScen, num_scen);
+  cci::increaseVal(Loc, LeaderVars::CarbPrice, 1);
+  cci::increaseVal(Loc, LeaderVars::TotInv, 1);
 
   // Leader Constraints
   constexpr short int consum_lim_cons{num_scen};
   const short int import_lim_cons = [&Params]() {
     if (Params.LeaderParam.import_limit >= 0)
-      return num_scen;
+      return 1u;
     else
       return 0u;
   }();
   const short int export_lim_cons = [&Params]() {
     if (Params.LeaderParam.export_limit >= 0)
-      return num_scen;
+      return 1u;
     else
       return 0u;
   }();
@@ -446,18 +401,18 @@ cci::EPEC<num_scen>::addCountry(cci::LeadAllPar<num_scen> Params,
   arma::sp_mat LeadCons(import_lim_cons +     // Import limit constraint
                             export_lim_cons + // Export limit constraint
                             consum_lim_cons + // Min consumption
+                            2 +               // Investment summing
                             1,                // Carbon credits >=0
                         Loc[cci::LeaderVars::End] - this->LL_MC_count);
-  arma::vec LeadRHS(import_lim_cons + export_lim_cons + consum_lim_cons + 1,
-                    arma::fill::zeros);
+  arma::vec LeadRHS(LeadCons.n_rows, arma::fill::zeros);
 
-  std::vector<std::shared_ptr<Game::QP_Param>> Players{};
+  std::vector<std::shared_ptr<Game::QP_Param>> FollowersVec{};
   // Create the QP_Param* for each follower
   try {
     for (unsigned int follower = 0; follower < Params.n_followers; follower++) {
       auto Foll = std::make_shared<Game::QP_Param>(this->env);
       this->make_LL_QP(Params, follower, Foll.get(), Loc);
-      Players.push_back(Foll);
+      FollowersVec.push_back(Foll);
     }
     // Make Leader Constraints
     this->make_LL_LeadCons(LeadCons, LeadRHS, Params, Loc, import_lim_cons,
@@ -478,20 +433,13 @@ cci::EPEC<num_scen>::addCountry(cci::LeadAllPar<num_scen> Params,
     throw;
   }
 
-  // Lower level Market clearing constraints - One for each scenario - 2nd stage
-  // carbon clearing
-  arma::sp_mat MC(num_scen, LeadVars + FollVarCount * Params.n_followers);
-  arma::vec MCRHS(num_scen, arma::fill::zeros);
-
-  for (unsigned int i = 0; i < num_scen; ++i) {
-    for (unsigned int j = 0; j < Params.n_followers; j++) {
-      MC(i, j * FollVarCount + cci::EPEC<num_scen>::FollCbuyScen + i) = 1;
-      MC(i, j * FollVarCount + cci::EPEC<num_scen>::FollCselScen + i) = -1;
-    }
-  }
+  // Lower level Market clearing constraints - None
+  arma::sp_mat MC(this->LL_MC_count,
+                  LeadVars + FollVarCount * Params.n_followers);
+  arma::vec MCRHS(this->LL_MC_count, arma::fill::zeros);
 
   // std::cout << "Nx, Ny, Ncons\n";
-  // for(const auto &pl:Players)
+  // for(const auto &pl:FollowersVec)
   // {
   // std::cout<<pl->getNx()<<" "<<pl->getNy()<<" "<<pl->getA().n_rows<<"\n";
   // }
@@ -501,7 +449,7 @@ cci::EPEC<num_scen>::addCountry(cci::LeadAllPar<num_scen> Params,
   // std::cout<<"LeaderVars: "<<LeadVars<<" " <<this->FollVarCount<<"\n";
 
   // Convert the country QP to a NashGame
-  auto N = std::make_shared<Game::NashGame>(this->env, Players, MC, MCRHS,
+  auto N = std::make_shared<Game::NashGame>(this->env, FollowersVec, MC, MCRHS,
                                             LeadVars - this->LL_MC_count,
                                             LeadCons, LeadRHS);
   this->name2nos[Params.name] = this->countries_LL.size();
@@ -539,15 +487,20 @@ void cci::EPEC<num_scen>::make_LL_QP(
 {
   const unsigned int n_Foll = Params.n_followers;
   const unsigned int LeadVars =
-      Loc.at(cci::LeaderVars::End) - FollVarCount * n_Foll;
+      Loc.at(cci::LeaderVars::End) - this->FollVarCount * n_Foll;
   const unsigned int otherVars = LeadVars + (n_Foll - 1) * FollVarCount;
 
   arma::sp_mat Q(FollVarCount, FollVarCount);
   arma::sp_mat C(FollVarCount, otherVars);
-  // Two constraints for each scenario. One saying that you should be less than
-  // the infrastructural capacity. Another saying that you should produce less
-  // than the carbon credit availability.
-  constexpr unsigned int n_Const = 2 * num_scen;
+
+  // cci::dirtyEnergy.size() constraints for dirty energy
+  // infrastructural limits
+  // cci::cleanEnergy.size()*num_scen for clean energy
+  // infrastructural limits
+  // num_scen for carbon credit limits
+  constexpr unsigned int n_Const =
+      cci::dirtyEnergy.size() + cci::cleanEnergy.size() * num_scen + num_scen;
+
   arma::sp_mat A(n_Const, otherVars);
   arma::sp_mat B(n_Const, FollVarCount);
   arma::vec c(FollVarCount), b(n_Const);
@@ -560,7 +513,16 @@ void cci::EPEC<num_scen>::make_LL_QP(
   Q.zeros();
   c.zeros();
   // OBJECTIVE
+
   for (unsigned int i = 0; i < num_scen; ++i) {
+          Q(0, 0) = Params.FollowerParam.at(follower).investmentCosts.second;
+		  for(unsigned int ii = 0; ii<cci::cleanEnergy.size(); ii++)
+		  { 
+			  Q(this->FollInv+ii, this->FollInv+ii) = Params.FollowerParam.at(fol
+		  }
+
+
+
     Q(FollProdScen + i, FollProdScen + i) =
         (Params.FollowerParam.costs_quad.at(follower) +
          2 * Params.DemandParam.at(i).beta) *
