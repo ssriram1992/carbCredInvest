@@ -121,10 +121,25 @@ void decreaseVal(LeadLocs &L, const LeaderVars start, const unsigned int val,
 void init(LeadLocs &L);
 
 LeaderVars operator+(cci::LeaderVars a, int b);
+/*
 
-/********************/
-// Class definition
-/********************/
+  ####   #         ##     ####    ####
+ #    #  #        #  #   #       #
+ #       #       #    #   ####    ####
+ #       #       ######       #       #
+ #    #  #       #    #  #    #  #    #
+  ####   ######  #    #   ####    ####
+
+
+ #####   #####    ####    #####   ####    #####   #   #  #####   ######
+ #    #  #    #  #    #     #    #    #     #      # #   #    #  #
+ #    #  #    #  #    #     #    #    #     #       #    #    #  #####
+ #####   #####   #    #     #    #    #     #       #    #####   #
+ #       #   #   #    #     #    #    #     #       #    #       #
+ #       #    #   ####      #     ####      #       #    #       ######
+
+*/
+
 template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
 class EPEC : public Game::EPEC {
   // Mandatory virtuals
@@ -158,10 +173,11 @@ private:
 
   static constexpr unsigned int FollInv{0};
   static constexpr unsigned int FollProdDirty{n_Clean};
-  static constexpr unsigned int FollProdClean{FollProdDirty+n_Dirty*n_Scen};
-  static constexpr unsigned int FollCarbBuy{n_Clean + (n_Clean+n_Dirty)*n_Scen};
-  static constexpr unsigned int FollCarbSel{FollCarbBuy+1};
-  static constexpr unsigned int FollEnd{FollCarbSel+1};
+  static constexpr unsigned int FollProdClean{FollProdDirty + n_Dirty * n_Scen};
+  static constexpr unsigned int FollCarbBuy{n_Clean +
+                                            (n_Clean + n_Dirty) * n_Scen};
+  static constexpr unsigned int FollCarbSel{FollCarbBuy + 1};
+  static constexpr unsigned int FollEnd{FollCarbSel + 1};
 
   static constexpr unsigned int FollVarCount{FollEnd};
 
@@ -523,8 +539,9 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
   // OBJECTIVE
   // Investment cost
   for (unsigned int ii = 0; ii < n_Clean; ii++) {
-    Q(FollInv+ii,FollInv+ ii) = Follparam.investmentCosts.at(cleanEnergy.at(ii)).second;
-    c(FollInv+ii) = Follparam.investmentCosts.at(cleanEnergy.at(ii)).first;
+    Q(FollInv + ii, FollInv + ii) =
+        Follparam.investmentCosts.at(cleanEnergy.at(ii)).second;
+    c(FollInv + ii) = Follparam.investmentCosts.at(cleanEnergy.at(ii)).first;
   }
   // Dirty energy production cost and demand term
   for (unsigned int ii = 0; ii < n_Dirty; ii++) {
@@ -551,7 +568,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
       }
     }
   }
-  // Clean energy Production cost
+  // Clean energy Production cost and demand
   for (unsigned int ii = 0; ii < n_Clean; ii++) {
     for (unsigned int scen = 0; scen < n_Scen; ++scen) {
       // position of cost
@@ -580,7 +597,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
   for (unsigned int ii = 0; ii < n_Clean; ii++) {
     for (unsigned int jj = 0; jj < ii; jj++) {
       for (unsigned int scen = 0; scen < n_Scen; ++scen) {
-        const auto pos1{FolProdDirty + n_Dirty * scen + ii};
+        const auto pos1{FollProdDirty + n_Dirty * scen + ii};
         const auto pos2{FollProdClean + n_Clean * scen + jj};
         Q(pos1, pos2) =
             Params.scenProb.at(scen) * (2 * Params.DemandParam.at(scen).second);
@@ -594,29 +611,58 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
   C(FollCarbBuy, Loc.at(LeaderVars::CarbPrice) - FollVarCount) = 1;
   C(FollCarbSel, Loc.at(LeaderVars::CarbPrice) - FollVarCount) = -1;
   // C - the crossterms
-	for(unsigned int scen=0; scen<n_Scen;
-
-  for (unsigned int i = 0; i < n_Scen; ++i) {
-    // Quantity produced by other folowers times quantity produced by self terms
-    // - for each scenario
-    for (unsigned int j = 0; j < Params.n_followers - 1; ++j) {
-      C(FollProdScen + i, FollVarCount * j + FollProdScen + i) =
-          Params.DemandParam.at(i).beta * Params.scenProb.at(i);
+  for (unsigned int scen = 0; scen < n_Scen; scen++) {
+    for (unsigned int ii = 0; ii < n_Clean + n_Dirty; ii++) {
+      for (unsigned int jj = 0; jj < n_Clean + n_Dirty; jj++) {
+        // Lambda that gives the position of the
+        // current production variable
+        const auto pos = [scen](const unsigned int i_nos) {
+          if (i_nos < n_Dirty)
+            return FollProdDirty + n_Dirty * scen + i_nos;
+          else
+            return  FollProdClean + n_Clean *scen + i_nos ;
+        };
+        const auto pos1 = pos(ii);
+        const auto pos2 = pos(jj);
+        for (unsigned int kk = 0; kk < n_Foll - 1; ++kk) {
+          C(pos1, kk * FollVarCount + pos2) =
+              Params.scenProb.at(scen) *
+              (2 * Params.DemandParam.at(scen).second);
+        }
+      }
     }
   }
+
   // OBJECTIVE Described
 
   // CONSTRAINTS
-  for (unsigned int i = 0; i < n_Scen; ++i) {
-    // Infrastructural capacity constraint
-    B(i, FollProdScen + i) = 1;
-    b(i) = Params.FollowerParam.capacities.at(i).at(follower);
-    // Carbon credit limit constraint
-    B(n_Scen + i, FollCarb) = -1;
-    B(n_Scen + i, FollProdScen + i) =
-        Params.FollowerParam.emission_costs.at(follower);
-    B(n_Scen + i, FollCbuyScen + i) = -1;
-    B(n_Scen + i, FollCselScen + i) = 1;
+  const auto &infCap = Follparam.capacity;
+  const auto &renCapAdj = Follparam.renewCapAdjust;
+  unsigned int constrCount{0};
+  for (unsigned int scen = 0; scen < n_Scen; ++scen){
+    // Infrastructural limit
+    for (unsigned int ii = 0; ii < n_Dirty; ++ii)    {
+      B(constrCount, FollProdDirty+scen*n_Dirty+ii) = 1;
+      b(constrCount) = infCap.at(dirtyEnergy.at(ii));
+      // Next constraint
+      constrCount++;
+    }
+    for (unsigned int ii = 0; ii < n_Clean; ++ii)    {
+      B(constrCount, FollProdClean+scen*n_Clean+ii) = 1;
+      b(constrCount) = infCap.at(cleanEnergy.at(ii)) + renCapAdj.at(scen);
+      // Next constraint
+      constrCount++;
+    }
+    // Carbon credits limit Constraint
+    B(constrCount, FollCarbBuy) = -1;
+    B(constrCount, FollCarbSel) = +1;
+    for (unsigned int ii = 0; ii < n_Dirty; ++ii)
+      B(constrCount, FollProdDirty + scen * n_Dirty + ii) =
+          Follparam.emissionCosts.at(dirtyEnergy.at(ii))
+    for (unsigned int ii = 0; ii < n_Clean; ++ii)
+      B(constrCount, FollProdClean + scen * n_Clean + ii) =
+          Follparam.emissionCosts.at(cleanEnergy.at(ii))
+    b(constrCount) = Follparam.carbonCreditInit;
   }
   // CONSTRAINTS Described
 
