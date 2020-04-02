@@ -73,8 +73,8 @@ string to_string(const GRBVar &var) {
   return name.empty() ? "unNamedvar" : name;
 }
 
-template <unsigned int num_scen>
-void cci::EPECInstance<num_scen>::save(string filename) {
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+void cci::EPECInstance<n_Dirty, n_Clean, n_Scen>::save(string filename) {
   /**
    * @brief Writes the current EPEC instance to the standard JSON instance file
    * @p filename dictates the name of the JSON instance file

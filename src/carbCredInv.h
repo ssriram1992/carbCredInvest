@@ -17,36 +17,26 @@
 
 namespace cci {
 
-extern const std::vector<std::string> dirtyEnergy;
-extern const std::vector<std::string> cleanEnergy;
-/// cci::energy should contain everything in dirtyEnergy and cleanEnergy
-extern const std::vector<std::string> energy;
 // const std::vector<std::string> dirtyEnergy {"coal", "gas"};
 // const std::vector<std::string> cleanEnergy {"wind", "solar"};
 
 /// @brief Stores the parameters of the follower in a country model
-template <unsigned int num_scen> struct FollPar {
+template <unsigned int n_Scen> struct FollPar {
   /// For Eaxh prodType, linear and quadratic cost of production
   std::map<std::string, std::pair<double, double>> productionCosts;
   /// Production capacity of each prodType
   std::map<std::string, double> capacities;
   /// Renewable capacity adjustment for each scenario
-  std::array<double, num_scen> renewCapAdjust;
+  std::array<double, n_Scen> renewCapAdjust;
   ///	Linear and QUadratic Investment costs for renewables
-  std::pair<double, double> investmentCosts{0, 0};
+  std::map<std::string, std::pair<double, double>> investmentCosts;
   /// Emission costs for unit quantity of the fuel. Emission costs feature only
   /// on the leader's problem
   std::map<std::string, double> emissionCosts;
 
   double carbonCreditInit = 0;
   std::string name = {}; ///< Optional Names for the Followers.
-  FollPar() {
-    for (const auto &x : cci::energy) {
-      this->productionCosts[x] = {0, 0};
-      this->capacities[x] = 0;
-      this->emissionCosts[x] = 0;
-    }
-  }
+  FollPar() = default;
 };
 
 /// @brief Stores the parameters of the leader in a country model
@@ -66,25 +56,26 @@ struct LeadPar {
 };
 
 /// @brief Stores the parameters of a country model
-template <unsigned int num_scen> struct LeadAllPar {
+template <unsigned int n_Scen> struct LeadAllPar {
   unsigned int n_followers; ///< Number of followers in the country
   std::string name;         ///< Country Name
-  std::vector<cci::FollPar<num_scen>> FollowerParam =
+  std::vector<cci::FollPar<n_Scen>> FollowerParam =
       {};                        ///< A vector to hold Follower Parameters
   cci::LeadPar LeaderParam = {}; ///< A struct to hold Leader Parameters
-  std::array<std::pair<double, double>, num_scen> DemandParam = {
+  std::array<std::pair<double, double>, n_Scen> DemandParam = {
       {}}; ///< To hold Demand Parameters - intercept and slope
-  std::array<double, num_scen> scenProb = {{}};
+  std::array<double, n_Scen> scenProb = {{}};
 };
 
 /// @brief Stores a single Instance
-template <unsigned int num_scen> struct EPECInstance {
-  std::vector<cci::LeadAllPar<num_scen>> Countries = {}; ///< LeadAllPar vector
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+struct EPECInstance {
+  std::vector<cci::LeadAllPar<n_Scen>> Countries = {}; ///< LeadAllPar vector
 
   EPECInstance(std::string filename) {
     this->load(filename);
   } ///< Constructor from instance file
-  EPECInstance(std::vector<cci::LeadAllPar<num_scen>> Countries_)
+  EPECInstance(std::vector<cci::LeadAllPar<n_Scen>> Countries_)
       : Countries{Countries_} {}
   ///< Constructor from instance objects
 
@@ -106,18 +97,19 @@ enum class LeaderVars {
   End
 };
 
-template <unsigned int num_scen>
-std::ostream &operator<<(std::ostream &ost, const FollPar<num_scen> P);
+template <unsigned int n_Scen>
+std::ostream &operator<<(std::ostream &ost, const FollPar<n_Scen> P);
 
 std::ostream &operator<<(std::ostream &ost, const LeadPar P);
 
-template <unsigned int num_scen>
-std::ostream &operator<<(std::ostream &ost, const LeadAllPar<num_scen> P);
+template <unsigned int n_Scen>
+std::ostream &operator<<(std::ostream &ost, const LeadAllPar<n_Scen> P);
 
 std::ostream &operator<<(std::ostream &ost, const LeaderVars l);
 
-template <unsigned int num_scen>
-std::ostream &operator<<(std::ostream &ost, EPECInstance<num_scen> I);
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+std::ostream &operator<<(std::ostream &ost,
+                         EPECInstance<n_Dirty, n_Clean, n_Scen> I);
 
 using LeadLocs = std::map<LeaderVars, unsigned int>;
 
@@ -133,7 +125,8 @@ LeaderVars operator+(cci::LeaderVars a, int b);
 /********************/
 // Class definition
 /********************/
-template <unsigned int num_scen> class EPEC : public Game::EPEC {
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+class EPEC : public Game::EPEC {
   // Mandatory virtuals
 private:
   void make_obj_leader(const unsigned int i, Game::QP_objective &QP_obj);
@@ -156,21 +149,23 @@ public:
   static constexpr double social_cost_of_carbon{1000};
 
 private:
+  const std::vector<const std::string> dirtyEnergy;
+  const std::vector<const std::string> cleanEnergy;
+  /// cci::energy should contain everything in dirtyEnergy and cleanEnergy
+  const std::vector<std::string> energy;
   static constexpr unsigned int LL_MC_count =
       0; // No market clearing for follower
 
-  static constexpr unsigned int FollInv{1};
-  static constexpr unsigned int FollProd{cci::cleanEnergy.size() +
-                                         cci::dirtyEnergy.size() * num_scen};
-  static constexpr unsigned int FollCarbBuy{1};
-  static constexpr unsigned int FollCarbSel{1};
-  static constexpr unsigned int FollEnd{1 + cci::cleanEnergy.size() +
-                                        cci::dirtyEnergy.size() * num_scen + 1 +
-                                        1 - 1};
+  static constexpr unsigned int FollInv{0};
+  static constexpr unsigned int FollProdDirty{n_Clean};
+  static constexpr unsigned int FollProdClean{FollProdDirty+n_Dirty*n_Scen};
+  static constexpr unsigned int FollCarbBuy{n_Clean + (n_Clean+n_Dirty)*n_Scen};
+  static constexpr unsigned int FollCarbSel{FollCarbBuy+1};
+  static constexpr unsigned int FollEnd{FollCarbSel+1};
 
-  static constexpr unsigned int FollVarCount{this->FollEnd};
+  static constexpr unsigned int FollVarCount{FollEnd};
 
-  std::vector<LeadAllPar<num_scen>> AllLeadPars =
+  std::vector<LeadAllPar<n_Scen>> AllLeadPars =
       {}; ///< The parameters of each leader in the EPEC game
   std::vector<std::shared_ptr<Game::QP_Param>> MC_QP =
       {}; ///< The QP corresponding to the market clearing condition of each
@@ -186,16 +181,15 @@ private:
   // Super low level
   /// Checks that the parameter given to add a country is valid. Does not have
   /// obvious errors
-  bool ParamValid(const LeadAllPar<num_scen> &Param) const;
+  bool ParamValid(const LeadAllPar<n_Scen> &Param) const;
 
   /// Makes the lower level quadratic program object for each follower.
-  void make_LL_QP(const LeadAllPar<num_scen> &Params,
-                  const unsigned int follower, Game::QP_Param *Foll,
-                  const LeadLocs &Loc) const noexcept;
+  void make_LL_QP(const LeadAllPar<n_Scen> &Params, const unsigned int follower,
+                  Game::QP_Param *Foll, const LeadLocs &Loc) const noexcept;
 
   /// Makes the leader constraint matrix and RHS
   void make_LL_LeadCons(arma::sp_mat &LeadCons, arma::vec &LeadRHS,
-                        const LeadAllPar<num_scen> &Param,
+                        const LeadAllPar<n_Scen> &Param,
                         const cci::LeadLocs &Loc = {},
                         const unsigned int import_lim_cons = 1,
                         const unsigned int export_lim_cons = 1,
@@ -217,12 +211,19 @@ public: // Attributes
 
   EPEC() = delete;
 
-  EPEC(GRBEnv *env) : Game::EPEC(env) {}
+  EPEC(GRBEnv *env, const std::vector<const std::string> dirtyEnergy,
+       const std::vector<const std::string> cleanEnergy)
+      : Game::EPEC(env), dirtyEnergy{dirtyEnergy}, cleanEnergy{cleanEnergy} {
+    if (dirtyEnergy.size() != n_Dirty || cleanEnergy.size() != n_Clean) {
+      throw std::string(
+          "Error in EPEC(): Illegal size of dirtyEnergy/cleanEnergy");
+    }
+  }
 
   ///@brief %cci a Standard Nash-Cournot game within a country
   EPEC &addCountry(
       /// The Parameter structure for the leader
-      LeadAllPar<num_scen> Params);
+      LeadAllPar<n_Scen> Params);
 
   unsigned int getPosition(const unsigned int countryCount,
                            const LeaderVars var = LeaderVars::Followers) const;
@@ -253,8 +254,8 @@ public: // Attributes
   void writeSolution(const int writeLevel, std::string filename) const;
 
   ///@brief Get the current EPECInstance loaded
-  const EPECInstance<num_scen> getInstance() const {
-    return EPECInstance<num_scen>(this->AllLeadPars);
+  const EPECInstance<n_Dirty, n_Clean, n_Scen> getInstance() const {
+    return EPECInstance<n_Dirty, n_Clean, n_Scen>(this->AllLeadPars);
   }
 };
 
@@ -272,9 +273,9 @@ enum class prn { label, val };
 std::ostream &operator<<(std::ostream &ost, cci::prn l);
 } // namespace cci
 
-template <unsigned int num_scen>
-cci::FollPar<num_scen> operator+(const cci::FollPar<num_scen> &F1,
-                                 const cci::FollPar<num_scen> &F2);
+template <unsigned int n_Scen>
+cci::FollPar<n_Scen> operator+(const cci::FollPar<n_Scen> &F1,
+                               const cci::FollPar<n_Scen> &F2);
 
 /*
 
@@ -291,8 +292,8 @@ cci::FollPar<num_scen> operator+(const cci::FollPar<num_scen> &F1,
 */
 
 /* Examples */
-template <unsigned int num_scen>
-void cci::EPEC<num_scen>::make_obj_leader(
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_obj_leader(
     const unsigned int
         i, ///< The location of the country whose objective is to be made
     Game::QP_objective
@@ -305,7 +306,7 @@ void cci::EPEC<num_scen>::make_obj_leader(
   const unsigned int nEPECvars = this->getnVarinEPEC();
   const unsigned int nThisCountryvars =
       this->Locations.at(i).at(cci::LeaderVars::End);
-  const LeadAllPar<num_scen> &Params = this->AllLeadPars.at(i);
+  const LeadAllPar<n_Scen> &Params = this->AllLeadPars.at(i);
   const LeadLocs &Loc = this->Locations.at(i);
 
   QP_obj.Q.zeros(nThisCountryvars, nThisCountryvars);
@@ -314,7 +315,7 @@ void cci::EPEC<num_scen>::make_obj_leader(
 
   // Total emission
   for (unsigned int j = 0; j < Params.n_followers; j++) {
-    for (unsigned int ell = 0; ell < num_scen; ell++) {
+    for (unsigned int ell = 0; ell < n_Scen; ell++) {
       QP_obj.c.at(FollVarCount * j + FollProdScen + ell) =
           Params.scenProb.at(ell) * Params.FollowerParam.emission_costs.at(j) *
           social_cost_of_carbon;
@@ -330,7 +331,7 @@ void cci::EPEC<num_scen>::make_obj_leader(
       this->getPosition(this->getNcountries() - 1, cci::LeaderVars::End) -
           nThisCountryvars) = -1;
   // Energy international trade term
-  for (unsigned int j = 0; j < num_scen; ++j) {
+  for (unsigned int j = 0; j < n_Scen; ++j) {
     QP_obj.C.at(
         Loc.at(LeaderVars::EnergExpScen) + j,
         this->getPosition(this->getNcountries() - 1, cci::LeaderVars::End) -
@@ -342,13 +343,14 @@ void cci::EPEC<num_scen>::make_obj_leader(
   }
 }
 
-template <unsigned int num_scen>
-cci::EPEC<num_scen> &
-cci::EPEC<num_scen>::addCountry(cci::LeadAllPar<num_scen> Params) {
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+cci::EPEC<n_Dirty, n_Clean, n_Scen> &
+cci::EPEC<n_Dirty, n_Clean, n_Scen>::addCountry(
+    cci::LeadAllPar<n_Scen> Params) {
   // const unsigned int addnlLeadVars) {
   if (this->finalized)
     throw std::string(
-        "Error in cci::EPEC<num_scen>::addCountry: EPEC object "
+        "Error in cci::EPEC<n_Dirty,n_Clean,n_Scen>::addCountry: EPEC object "
         "finalized. Call "
         "EPEC::unlock() to unlock this object first and then edit.");
 
@@ -356,12 +358,15 @@ cci::EPEC<num_scen>::addCountry(cci::LeadAllPar<num_scen> Params) {
   try {
     noError = this->ParamValid(Params);
   } catch (const char *e) {
-    cerr << "Error in cci::EPEC<num_scen>::addCountry: " << e << '\n';
-  } catch (std::string e) {
-    cerr << "String: Error in cci::EPEC<num_scen>::addCountry: " << e << '\n';
-  } catch (std::exception &e) {
-    cerr << "Exception: Error in cci::EPEC<num_scen>::addCountry: " << e.what()
+    cerr << "Error in cci::EPEC<n_Dirty,n_Clean,n_Scen>::addCountry: " << e
          << '\n';
+  } catch (std::string e) {
+    cerr << "String: Error in cci::EPEC<n_Dirty,n_Clean,n_Scen>::addCountry: "
+         << e << '\n';
+  } catch (std::exception &e) {
+    cerr
+        << "Exception: Error in cci::EPEC<n_Dirty,n_Clean,n_Scen>::addCountry: "
+        << e.what() << '\n';
   }
 
   if (!noError)
@@ -384,7 +389,7 @@ cci::EPEC<num_scen>::addCountry(cci::LeadAllPar<num_scen> Params) {
   cci::increaseVal(Loc, LeaderVars::TotInv, 1);
 
   // Leader Constraints
-  constexpr short int consum_lim_cons{num_scen};
+  constexpr short int consum_lim_cons{n_Scen};
   const short int import_lim_cons = [&Params]() {
     if (Params.LeaderParam.import_limit >= 0)
       return 1u;
@@ -421,15 +426,16 @@ cci::EPEC<num_scen>::addCountry(cci::LeadAllPar<num_scen> Params) {
     cerr << e << '\n';
     throw;
   } catch (std::string e) {
-    cerr << "String in cci::EPEC<num_scen>::addCountry : " << e << '\n';
+    cerr << "String in cci::EPEC<n_Dirty,n_Clean,n_Scen>::addCountry : " << e
+         << '\n';
     throw;
   } catch (GRBException &e) {
-    cerr << "GRBException in cci::EPEC<num_scen>::addCountry : "
+    cerr << "GRBException in cci::EPEC<n_Dirty,n_Clean,n_Scen>::addCountry : "
          << e.getErrorCode() << ": " << e.getMessage() << '\n';
     throw;
   } catch (std::exception &e) {
-    cerr << "Exception in cci::EPEC<num_scen>::addCountry : " << e.what()
-         << '\n';
+    cerr << "Exception in cci::EPEC<n_Dirty,n_Clean,n_Scen>::addCountry : "
+         << e.what() << '\n';
     throw;
   }
 
@@ -466,13 +472,13 @@ cci::EPEC<num_scen>::addCountry(cci::LeadAllPar<num_scen> Params) {
 
   this->LeadConses.push_back(N->RewriteLeadCons()); // Not mandatory!
   this->AllLeadPars.push_back(Params);
-  this->Game::EPEC::n_MCVar = 1 + num_scen;
+  this->Game::EPEC::n_MCVar = 1 + n_Scen;
   return *this;
 }
 
-template <unsigned int num_scen>
-void cci::EPEC<num_scen>::make_LL_QP(
-    const cci::LeadAllPar<num_scen> &Params, ///< The Parameters object
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
+    const cci::LeadAllPar<n_Scen> &Params, ///< The Parameters object
     const unsigned int follower, ///< Which follower's QP has to be made?
     Game::QP_Param
         *Foll, ///< Non-owning pointer to the Follower QP_Param object
@@ -493,13 +499,14 @@ void cci::EPEC<num_scen>::make_LL_QP(
   arma::sp_mat Q(FollVarCount, FollVarCount);
   arma::sp_mat C(FollVarCount, otherVars);
 
-  // cci::dirtyEnergy.size() constraints for dirty energy
+  // n_Dirty*n_Scen for dirty energy
   // infrastructural limits
-  // cci::cleanEnergy.size()*num_scen for clean energy
+  // n_Clean*n_Scen for clean energy
   // infrastructural limits
-  // num_scen for carbon credit limits
-  constexpr unsigned int n_Const =
-      cci::dirtyEnergy.size() + cci::cleanEnergy.size() * num_scen + num_scen;
+  // n_Scen for carbon credit limits
+  constexpr unsigned int n_Const = (n_Dirty + n_Clean) * n_Scen + n_Scen;
+
+  const auto &Follparam = Params.FollowerParam.at(follower);
 
   arma::sp_mat A(n_Const, otherVars);
   arma::sp_mat B(n_Const, FollVarCount);
@@ -512,83 +519,116 @@ void cci::EPEC<num_scen>::make_LL_QP(
   b.zeros();
   Q.zeros();
   c.zeros();
+
   // OBJECTIVE
-
-  for (unsigned int i = 0; i < num_scen; ++i) {
-          Q(0, 0) = Params.FollowerParam.at(follower).investmentCosts.second;
-		  for(unsigned int ii = 0; ii<cci::cleanEnergy.size(); ii++)
-		  { 
-			  Q(this->FollInv+ii, this->FollInv+ii) = Params.FollowerParam.at(fol
-		  }
-
-
-
-    Q(FollProdScen + i, FollProdScen + i) =
-        (Params.FollowerParam.costs_quad.at(follower) +
-         2 * Params.DemandParam.at(i).beta) *
-        Params.scenProb.at(i);
-    c(FollProdScen + i) = (Params.FollowerParam.costs_lin.at(follower) -
-                           Params.DemandParam.at(i).alpha) *
-                          Params.scenProb.at(i);
+  // Investment cost
+  for (unsigned int ii = 0; ii < n_Clean; ii++) {
+    Q(FollInv+ii,FollInv+ ii) = Follparam.investmentCosts.at(cleanEnergy.at(ii)).second;
+    c(FollInv+ii) = Follparam.investmentCosts.at(cleanEnergy.at(ii)).first;
   }
+  // Dirty energy production cost and demand term
+  for (unsigned int ii = 0; ii < n_Dirty; ii++) {
+    for (unsigned int scen = 0; scen < n_Scen; ++scen) {
+      // position of cost
+      const auto pos{FollProdDirty + n_Dirty * scen + ii};
+      // quadratic part
+      Q(pos, pos) = Params.scenProb.at(scen) *
+                    (Follparam.productionCosts.at(dirtyEnergy.at(ii)).second +
+                     2 * Params.DemandParam.at(scen).second);
+      // linear part
+      c(pos) = Params.scenProb.at(scen) *
+               (Follparam.productionCosts.at(dirtyEnergy.at(ii)).first -
+                Params.DemandParam.at(scen).first);
+    }
+    // Energy Demand - off diagonal terms
+    for (unsigned int jj = 0; jj < ii; jj++) {
+      for (unsigned int scen = 0; scen < n_Scen; ++scen) {
+        const auto pos1{FollProdDirty + n_Dirty * scen + ii};
+        const auto pos2{FollProdDirty + n_Dirty * scen + jj};
+        Q(pos1, pos2) =
+            Params.scenProb.at(scen) * (2 * Params.DemandParam.at(scen).second);
+        Q(pos2, pos1) = Q(pos1, pos2);
+      }
+    }
+  }
+  // Clean energy Production cost
+  for (unsigned int ii = 0; ii < n_Clean; ii++) {
+    for (unsigned int scen = 0; scen < n_Scen; ++scen) {
+      // position of cost
+      const auto pos{FollProdClean + n_Clean * scen + ii};
+      // quadratic part
+      Q(pos, pos) = Params.scenProb.at(scen) *
+                    (Follparam.productionCosts.at(cleanEnergy.at(ii)).second +
+                     2 * Params.DemandParam.at(scen).second);
+      // linear part
+      c(pos) = Params.scenProb.at(scen) *
+               (Follparam.productionCosts.at(cleanEnergy.at(ii)).first -
+                Params.DemandParam.at(scen).first);
+    }
+    // Energy Demand - off diagonal terms
+    for (unsigned int jj = 0; jj < ii; jj++) {
+      for (unsigned int scen = 0; scen < n_Scen; ++scen) {
+        const auto pos1{FollProdClean + n_Clean * scen + ii};
+        const auto pos2{FollProdClean + n_Clean * scen + jj};
+        Q(pos1, pos2) =
+            Params.scenProb.at(scen) * (2 * Params.DemandParam.at(scen).second);
+        Q(pos2, pos1) = Q(pos1, pos2);
+      }
+    }
+  }
+  // Energy Demand - off diagonal cross terms
+  for (unsigned int ii = 0; ii < n_Clean; ii++) {
+    for (unsigned int jj = 0; jj < ii; jj++) {
+      for (unsigned int scen = 0; scen < n_Scen; ++scen) {
+        const auto pos1{FolProdDirty + n_Dirty * scen + ii};
+        const auto pos2{FollProdClean + n_Clean * scen + jj};
+        Q(pos1, pos2) =
+            Params.scenProb.at(scen) * (2 * Params.DemandParam.at(scen).second);
+        Q(pos2, pos1) = Q(pos1, pos2);
+      }
+    }
+  }
+
   // C - the crossterms
   // Carbon price by government times carbon purchased
-  C(FollCarb, Loc.at(LeaderVars::CarbPrice) - FollVarCount) = 1;
+  C(FollCarbBuy, Loc.at(LeaderVars::CarbPrice) - FollVarCount) = 1;
+  C(FollCarbSel, Loc.at(LeaderVars::CarbPrice) - FollVarCount) = -1;
   // C - the crossterms
+	for(unsigned int scen=0; scen<n_Scen;
 
-  for (unsigned int i = 0; i < num_scen; ++i) {
+  for (unsigned int i = 0; i < n_Scen; ++i) {
     // Quantity produced by other folowers times quantity produced by self terms
     // - for each scenario
     for (unsigned int j = 0; j < Params.n_followers - 1; ++j) {
       C(FollProdScen + i, FollVarCount * j + FollProdScen + i) =
           Params.DemandParam.at(i).beta * Params.scenProb.at(i);
     }
-    // Country Import/Export terms in demand curve
-    C(FollProdScen + i, Loc.at(LeaderVars::EnergImpScen) + i - FollVarCount) =
-        Params.DemandParam.at(i).beta * Params.scenProb.at(i);
-    C(FollProdScen + i, Loc.at(LeaderVars::EnergExpScen) + i - FollVarCount) =
-        -Params.DemandParam.at(i).beta * Params.scenProb.at(i);
-    // C(FollProdScen + i, Loc.at(LeaderVars::EnergImpScen) -this->LL_MC_count +
-    // i - FollVarCount) = Params.DemandParam.at(i).beta *
-    // Params.scenProb.at(i);
-    // C(FollProdScen + i, Loc.at(LeaderVars::EnergExpScen) -this->LL_MC_count +
-    // i - FollVarCount) = -Params.DemandParam.at(i).beta *
-    // Params.scenProb.at(i);
-    // 2nd Stage Domestic Carbon trade cost.
-    C(FollCbuyScen + i, Loc.at(LeaderVars::Foll2Cpr) + i - FollVarCount) =
-        Params.scenProb.at(i);
-    C(FollCselScen + i, Loc.at(LeaderVars::Foll2Cpr) + i - FollVarCount) =
-        -Params.scenProb.at(i);
-    // C(FollCbuyScen + i, Loc.at(LeaderVars::Foll2Cpr) -this->LL_MC_count + i -
-    // FollVarCount) = Params.scenProb.at(i);
-    // C(FollCselScen + i, Loc.at(LeaderVars::Foll2Cpr) -this->LL_MC_count + i -
-    // FollVarCount) = -Params.scenProb.at(i);
   }
   // OBJECTIVE Described
 
   // CONSTRAINTS
-  for (unsigned int i = 0; i < num_scen; ++i) {
+  for (unsigned int i = 0; i < n_Scen; ++i) {
     // Infrastructural capacity constraint
     B(i, FollProdScen + i) = 1;
     b(i) = Params.FollowerParam.capacities.at(i).at(follower);
     // Carbon credit limit constraint
-    B(num_scen + i, FollCarb) = -1;
-    B(num_scen + i, FollProdScen + i) =
+    B(n_Scen + i, FollCarb) = -1;
+    B(n_Scen + i, FollProdScen + i) =
         Params.FollowerParam.emission_costs.at(follower);
-    B(num_scen + i, FollCbuyScen + i) = -1;
-    B(num_scen + i, FollCselScen + i) = 1;
+    B(n_Scen + i, FollCbuyScen + i) = -1;
+    B(n_Scen + i, FollCselScen + i) = 1;
   }
   // CONSTRAINTS Described
 
   Foll->set(Q, C, A, B, c, b);
 }
 
-template <unsigned int num_scen>
-void cci::EPEC<num_scen>::make_LL_LeadCons(
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_LeadCons(
     arma::sp_mat
         &LeadCons,      ///< The LHS matrix of leader constraints (for output)
     arma::vec &LeadRHS, ///< RHS vector for leader constraints (for output)
-    const LeadAllPar<num_scen> &Params, ///< All country specific parameters
+    const LeadAllPar<n_Scen> &Params,   ///< All country specific parameters
     const cci::LeadLocs &Loc,           ///< Location of variables
     const unsigned int import_lim_cons, ///< Does a constraint on import limit
                                         ///< exist or no limit?
@@ -605,7 +645,7 @@ void cci::EPEC<num_scen>::make_LL_LeadCons(
   LeadCons.zeros();
   LeadRHS.zeros();
   // Scenario constraints
-  for (unsigned int i = 0; i < num_scen; i++) {
+  for (unsigned int i = 0; i < n_Scen; i++) {
     // Import limit constraints
     if (import_lim_cons) {
       LeadCons(i, Loc.at(LeaderVars::EnergExpScen) - this->LL_MC_count + i) =
@@ -643,20 +683,21 @@ void cci::EPEC<num_scen>::make_LL_LeadCons(
   LeadRHS(lastCons) = Params.LeaderParam.carbCredit_init;
 }
 
-template <unsigned int num_scen>
-void cci::EPEC<num_scen>::make_MC_cons(arma::sp_mat &MCLHS,
-                                       arma::vec &MCRHS) const
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_MC_cons(arma::sp_mat &MCLHS,
+                                                       arma::vec &MCRHS) const
 /** @brief Returns leader's Market clearing constraints in matrix form
  * @details
  */
 {
   if (!this->finalized)
     throw std::string(
-        "Error in cci::EPEC<num_scen>::make_MC_cons: This function can be "
+        "Error in cci::EPEC<n_Dirty,n_Clean,n_Scen>::make_MC_cons: This "
+        "function can be "
         "run only AFTER calling finalize()");
   // Output matrices
-  MCRHS.zeros(1 + num_scen);
-  MCLHS.zeros(1 + num_scen, this->getnVarinEPEC());
+  MCRHS.zeros(1 + n_Scen);
+  MCLHS.zeros(1 + n_Scen, this->getnVarinEPEC());
   if (this->getNcountries() > 1) {
     for (unsigned int i = 0; i < this->getNcountries(); ++i) {
       // The MC constraint for each leader country's carbon trade market
@@ -664,7 +705,7 @@ void cci::EPEC<num_scen>::make_MC_cons(arma::sp_mat &MCLHS,
       MCLHS(0, this->getPosition(i, LeaderVars::CarbImp)) = -1;
       // The MC constraint for each leader country's energy trade market,
       // scenario-wise
-      for (unsigned int j = 0; j < num_scen; ++j) {
+      for (unsigned int j = 0; j < n_Scen; ++j) {
         MCLHS(1 + j, this->getPosition(i, LeaderVars::EnergExpScen) + j) = 1;
         MCLHS(1 + j, this->getPosition(i, LeaderVars::EnergImpScen) + j) = -1;
       }
@@ -672,25 +713,36 @@ void cci::EPEC<num_scen>::make_MC_cons(arma::sp_mat &MCLHS,
   }
 }
 
-template <unsigned int num_scen>
-bool cci::EPEC<num_scen>::dataCheck(
-    const bool chkAllLeadPars, ///< Checks if cci::EPEC<num_scen>::AllLeadPars
-                               ///< has size @p n
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+bool cci::EPEC<n_Dirty, n_Clean, n_Scen>::dataCheck(
     const bool
-        chkcountries_LL, ///< Checks if cci::EPEC<num_scen>::countries_LL has
+        chkAllLeadPars, ///< Checks if
+                        ///< cci::EPEC<n_Dirty,n_Clean,n_Scen>::AllLeadPars
+                        ///< has size @p n
+    const bool
+        chkcountries_LL, ///< Checks if
+                         ///< cci::EPEC<n_Dirty,n_Clean,n_Scen>::countries_LL
+                         ///< has
     ///< size @p n
-    const bool chkMC_QP, ///< Checks if cci::EPEC<num_scen>::MC_QP has size @p n
-    const bool chkLeadConses, ///< Checks if cci::EPEC<num_scen>::LeadConses
+    const bool chkMC_QP, ///< Checks if cci::EPEC<n_Dirty,n_Clean,n_Scen>::MC_QP
+                         ///< has size @p n
+    const bool chkLeadConses, ///< Checks if
+                              ///< cci::EPEC<n_Dirty,n_Clean,n_Scen>::LeadConses
                               ///< has size @p n
-    const bool chkLeadRHSes,  ///< Checks if cci::EPEC<num_scen>::LeadRHSes has
-                              ///< size @p n
-    const bool chkLocations,  ///< Checks if cci::EPEC<num_scen>::Locations has
-                              ///< size @p n
-    const bool chkLeaderLocations, ///< Checks if
-                                   ///< cci::EPEC<num_scen>::LeaderLocations has
-    ///< size @p n and cci::EPEC<num_scen>::nVarinEPEC is set
-    const bool chkLeadObjec ///< Checks if cci::EPEC<num_scen>::LeadObjec has
-                            ///< size @p n
+    const bool chkLeadRHSes,  ///< Checks if
+                              ///< cci::EPEC<n_Dirty,n_Clean,n_Scen>::LeadRHSes
+                              ///< has size @p n
+    const bool chkLocations,  ///< Checks if
+                              ///< cci::EPEC<n_Dirty,n_Clean,n_Scen>::Locations
+                              ///< has size @p n
+    const bool
+        chkLeaderLocations, ///< Checks if
+                            ///< cci::EPEC<n_Dirty,n_Clean,n_Scen>::LeaderLocations
+                            ///< has
+    ///< size @p n and cci::EPEC<n_Dirty,n_Clean,n_Scen>::nVarinEPEC is set
+    const bool
+        chkLeadObjec ///< Checks if cci::EPEC<n_Dirty,n_Clean,n_Scen>::LeadObjec
+                     ///< has size @p n
 ) const
 /**
  * Checks the data in cci::EPEC object, based on checking flags, @p n is the
@@ -718,23 +770,24 @@ bool cci::EPEC<num_scen>::dataCheck(
   return true;
 }
 
-template <unsigned int num_scen>
-unsigned int cci::EPEC<num_scen>::getPosition(const unsigned int countryCount,
-                                              const cci::LeaderVars var) const
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+unsigned int cci::EPEC<n_Dirty, n_Clean, n_Scen>::getPosition(
+    const unsigned int countryCount, const cci::LeaderVars var) const
 /**
  * @brief Gets position of a variable in a country.
  */
 {
   if (countryCount >= this->getNcountries())
     throw std::string(
-        "Error in cci::EPEC<num_scen>::getPosition: Bad Country Count");
+        "Error in cci::EPEC<n_Dirty,n_Clean,n_Scen>::getPosition: Bad Country "
+        "Count");
   return this->LeaderLocations.at(countryCount) +
          this->Locations.at(countryCount).at(var);
 }
 
-template <unsigned int num_scen>
-unsigned int cci::EPEC<num_scen>::getPosition(const std::string countryName,
-                                              const cci::LeaderVars var) const
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+unsigned int cci::EPEC<n_Dirty, n_Clean, n_Scen>::getPosition(
+    const std::string countryName, const cci::LeaderVars var) const
 /**
  * @brief Gets position of a variable in a country given the country name and
  * the variable.
@@ -743,9 +796,9 @@ unsigned int cci::EPEC<num_scen>::getPosition(const std::string countryName,
   return this->getPosition(name2nos.at(countryName), var);
 }
 
-template <unsigned int num_scen>
-Game::NashGame *
-cci::EPEC<num_scen>::get_LowerLevelNash(const unsigned int i) const
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+Game::NashGame *cci::EPEC<n_Dirty, n_Clean, n_Scen>::get_LowerLevelNash(
+    const unsigned int i) const
 /**
  * @brief Returns a non-owning pointer to the @p i -th country's lower level
  * NashGame
@@ -754,8 +807,9 @@ cci::EPEC<num_scen>::get_LowerLevelNash(const unsigned int i) const
   return this->countries_LL.at(i).get();
 }
 
-template <unsigned int num_scen>
-cci::EPEC<num_scen> &cci::EPEC<num_scen>::unlock()
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+cci::EPEC<n_Dirty, n_Clean, n_Scen> &
+cci::EPEC<n_Dirty, n_Clean, n_Scen>::unlock()
 /**
  * @brief Unlocks an EPEC model
  * @details A finalized model cannot be edited unless it is unlocked first.
@@ -768,19 +822,21 @@ cci::EPEC<num_scen> &cci::EPEC<num_scen>::unlock()
   return *this;
 }
 
-template <unsigned int num_scen>
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
 std::unique_ptr<GRBModel>
-cci::EPEC<num_scen>::Respond(const std::string name, const arma::vec &x) const {
+cci::EPEC<n_Dirty, n_Clean, n_Scen>::Respond(const std::string name,
+                                             const arma::vec &x) const {
   return this->Game::EPEC::Respond(this->name2nos.at(name), x);
 }
 //
 
-template <unsigned int num_scen>
-void cci::EPEC<num_scen>::write(const std::string filename,
-                                const unsigned int i, bool append) const {
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+void cci::EPEC<n_Dirty, n_Clean, n_Scen>::write(const std::string filename,
+                                                const unsigned int i,
+                                                bool append) const {
   std::ofstream file;
   file.open(filename, append ? ios::app : ios::out);
-  const LeadAllPar<num_scen> &Params = this->AllLeadPars.at(i);
+  const LeadAllPar<n_Scen> &Params = this->AllLeadPars.at(i);
   file << "**************************************************\n";
   file << "COUNTRY: " << Params.name << '\n';
   file << "- - - - - - - - - - - - - - - - - - - - - - - - - \n";
@@ -789,8 +845,9 @@ void cci::EPEC<num_scen>::write(const std::string filename,
   file.close();
 }
 
-template <unsigned int num_scen>
-void cci::EPEC<num_scen>::write(const std::string filename, bool append) const {
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+void cci::EPEC<n_Dirty, n_Clean, n_Scen>::write(const std::string filename,
+                                                bool append) const {
   if (append) {
     std::ofstream file;
     file.open(filename, ios::app);
@@ -803,9 +860,9 @@ void cci::EPEC<num_scen>::write(const std::string filename, bool append) const {
     this->write(filename, i, (append || i));
 }
 
-template <unsigned int num_scen>
-void cci::EPEC<num_scen>::writeSolution(const int writeLevel,
-                                        std::string filename) const {
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+void cci::EPEC<n_Dirty, n_Clean, n_Scen>::writeSolution(
+    const int writeLevel, std::string filename) const {
   /**
    * @brief Writes the computed Nash Equilibrium in the EPEC instance
    * @p writeLevel is an integer representing the write configuration. 0: only
@@ -822,15 +879,15 @@ void cci::EPEC<num_scen>::writeSolution(const int writeLevel,
       // this->writeSolutionJSON(filename, this->sol_x, this->sol_z);
       ;
   } else {
-    cerr << "Error in cci::EPEC<num_scen>::writeSolution: no solution to write."
+    cerr << "Error in cci::EPEC<n_Dirty,n_Clean,n_Scen>::writeSolution: no "
+            "solution to write."
          << '\n';
   }
 }
 
-template <unsigned int num_scen>
-void cci::EPEC<num_scen>::WriteCountryMCprice(const std::string filename,
-                                              const arma::vec x,
-                                              const bool append) const {
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountryMCprice(
+    const std::string filename, const arma::vec x, const bool append) const {
   using cci::prn;
   std::ofstream file;
   file.open(filename, append ? ios::app : ios::out);
@@ -839,9 +896,9 @@ void cci::EPEC<num_scen>::WriteCountryMCprice(const std::string filename,
   file << "**************************************************\n";
   file << prn::label << "Carbon Price: " << prn::val
        << x.at(this->getPosition(this->getNcountries() - 1, LeaderVars::End));
-  const LeadAllPar<num_scen> &Params = this->AllLeadPars.at(0);
+  const LeadAllPar<n_Scen> &Params = this->AllLeadPars.at(0);
   double Price{0};
-  for (unsigned int scen = 0; scen < num_scen; scen++) {
+  for (unsigned int scen = 0; scen < n_Scen; scen++) {
     double prob = Params.scenProb.at(scen);
     file << "\nScenario " << scen + 1 << " with a probability " << prob << '\n';
     double price{x.at(
@@ -857,18 +914,17 @@ void cci::EPEC<num_scen>::WriteCountryMCprice(const std::string filename,
   // FILE OPERATIONS END
 }
 
-template <unsigned int num_scen>
-void cci::EPEC<num_scen>::WriteCountry(const unsigned int i,
-                                       const std::string filename,
-                                       const arma::vec x,
-                                       const bool append) const {
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountry(
+    const unsigned int i, const std::string filename, const arma::vec x,
+    const bool append) const {
   // if (!lcp) return;
   // const LeadLocs& Loc = this->Locations.at(i);
   using cci::prn;
   std::ofstream file;
   file.open(filename, append ? ios::app : ios::out);
   // FILE OPERATIONS START
-  const LeadAllPar<num_scen> &Params = this->AllLeadPars.at(i);
+  const LeadAllPar<n_Scen> &Params = this->AllLeadPars.at(i);
   file << "**************************************************\n";
   file << "COUNTRY: " << Params.name << '\n';
   file << "**************************************************\n\n";
@@ -887,7 +943,7 @@ void cci::EPEC<num_scen>::WriteCountry(const unsigned int i,
   ;
   double Expo{0}, Prod{0}, Price{0}, C2p{0};
   file << "\n";
-  for (unsigned int scen = 0; scen < num_scen; scen++) {
+  for (unsigned int scen = 0; scen < n_Scen; scen++) {
     double prob = Params.scenProb.at(scen);
     file << "Scenario " << scen + 1 << " with a probability " << prob << '\n';
     double prod{0};
@@ -931,16 +987,15 @@ void cci::EPEC<num_scen>::WriteCountry(const unsigned int i,
   // FILE OPERATIONS END
 }
 //
-template <unsigned int num_scen>
-void cci::EPEC<num_scen>::WriteFollower(const unsigned int i,
-                                        const unsigned int j,
-                                        const std::string filename,
-                                        const arma::vec x) const {
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteFollower(
+    const unsigned int i, const unsigned int j, const std::string filename,
+    const arma::vec x) const {
   using cci::prn;
   std::ofstream file;
   file.open(filename, ios::app);
 
-  const LeadAllPar<num_scen> &Params = this->AllLeadPars.at(i);
+  const LeadAllPar<n_Scen> &Params = this->AllLeadPars.at(i);
   //
   std::string name;
   try {
@@ -955,7 +1010,7 @@ void cci::EPEC<num_scen>::WriteFollower(const unsigned int i,
   file << prn::label << "CarbCred purchased: " << prn::val
        << x.at(foll_loc + FollCarb) << '\n';
   double Prod{0}, Trade{0};
-  for (unsigned int scen = 0; scen < num_scen; scen++) {
+  for (unsigned int scen = 0; scen < n_Scen; scen++) {
     double prob = Params.scenProb.at(scen);
     file << "\nScenario " << scen + 1 << " with a probability " << prob << '\n';
     double prod = x.at(foll_loc + FollProdScen + scen);
@@ -981,10 +1036,9 @@ void cci::EPEC<num_scen>::WriteFollower(const unsigned int i,
   file.close();
 }
 
-template <unsigned int num_scen>
-bool cci::EPEC<num_scen>::ParamValid(
-    const LeadAllPar<num_scen>
-        &Params ///< Object whose validity is to be tested
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+bool cci::EPEC<n_Dirty, n_Clean, n_Scen>::ParamValid(
+    const LeadAllPar<n_Scen> &Params ///< Object whose validity is to be tested
 ) const
 /**
  * @brief Checks the Validity of cci::LeadAllPar object
@@ -1002,7 +1056,7 @@ bool cci::EPEC<num_scen>::ParamValid(
       Params.FollowerParam.costs_quad.size() != Params.n_followers ||
       Params.FollowerParam.emission_costs.size() != Params.n_followers)
     throw std::string("Error in EPEC::ParamValid(). Size Mismatch");
-  for (unsigned int i = 0; i < num_scen; ++i) {
+  for (unsigned int i = 0; i < n_Scen; ++i) {
     if (Params.DemandParam[i].alpha <= 0 || Params.DemandParam[i].beta <= 0)
       throw std::string(
           "Error in EPEC::ParamValid(). Invalid demand curve params");
@@ -1020,9 +1074,9 @@ bool cci::EPEC<num_scen>::ParamValid(
   return true;
 }
 
-template <unsigned int num_scen>
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
 std::ostream &cci::operator<<(std::ostream &ost,
-                              const cci::LeadAllPar<num_scen> P) {
+                              const cci::LeadAllPar<n_Scen> P) {
   ost << "\n\n";
   ost << "***************************"
       << "\n";
@@ -1036,7 +1090,7 @@ std::ostream &cci::operator<<(std::ostream &ost,
       << "\n";
   ost << '\n' << P.LeaderParam << '\n' << P.FollowerParam << '\n';
   ost << "\n Random scenario probabilities: ";
-  for (unsigned int i = 0; i < num_scen; ++i) {
+  for (unsigned int i = 0; i < n_Scen; ++i) {
     ost << "Scenario " << i + 1
         << " happens with probability: " << P.scenProb.at(i) << '\n';
   }
@@ -1046,9 +1100,8 @@ std::ostream &cci::operator<<(std::ostream &ost,
   return ost;
 }
 
-template <unsigned int num_scen>
-std::ostream &cci::operator<<(std::ostream &ost,
-                              const cci::FollPar<num_scen> P) {
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+std::ostream &cci::operator<<(std::ostream &ost, const cci::FollPar<n_Scen> P) {
   ost << "Follower Parameters: " << '\n';
   ost << "********************" << '\n';
   ost << cci::prn::label << "Linear Costs"
@@ -1063,7 +1116,7 @@ std::ostream &cci::operator<<(std::ostream &ost,
   ost << '\n'
       << cci::prn::label << "Production capacities"
       << ":\n";
-  // for (unsigned int i = 0; i < num_scen; i++) {
+  // for (unsigned int i = 0; i < n_Scen; i++) {
   // for (auto sc : P.capacities.at(i)) {
   // ost << "\t Scenario " << i + 1 << ": (";
   // for (auto a : sc)
@@ -1081,19 +1134,20 @@ std::ostream &cci::operator<<(std::ostream &ost,
   return ost;
 }
 
-template <int num_scen>
+template <int n_Scen>
 std::ostream &operator<<(std::ostream &ost,
-                         const std::array<cci::DemPar, num_scen> P) {
+                         const std::array<cci::DemPar, n_Scen> P) {
   ost << "Demand Parameters: " << '\n';
   ost << "******************" << '\n';
-  for (unsigned int i = 0; i < num_scen; ++i)
+  for (unsigned int i = 0; i < n_Scen; ++i)
     ost << "\tScenario " << i + 1 << ": P\t\t =\t\t " << P[i].alpha << "\t-\t"
         << P[i].beta << cci::prn::label << " x Q\n";
   return ost;
 }
 
-template <unsigned int num_scen>
-void cci::EPEC<num_scen>::initializeSoln(arma::vec &init_x) const {
+template <unsigned int n_Scen>
+void cci::EPEC<n_Dirty, n_Clean, n_Scen>::initializeSoln(
+    arma::vec &init_x) const {
   double chiToArg_Carb{20};
 
   init_x.at(this->getPosition(0, cci::LeaderVars::CarbExp)) = chiToArg_Carb;
