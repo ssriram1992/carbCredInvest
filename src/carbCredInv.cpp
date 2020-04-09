@@ -83,8 +83,8 @@ void cci::EPECInstance<n_Dirty, n_Clean, n_Scen>::save(string filename) {
   std::cout << filename;
 }
 
-ostream &cci::operator<<(ostream &ost, const cci::prn l) {
-  switch (l) {
+ostream &cci::operator<<(ostream &ost, const cci::prn ll) {
+  switch (ll) {
   case cci::prn::label:
     ost << std::left << std::setw(50);
     break;
@@ -97,10 +97,10 @@ ostream &cci::operator<<(ostream &ost, const cci::prn l) {
   return ost;
 }
 
-ostream &cci::operator<<(ostream &ost, const cci::DemPar P) {
+ostream &cci::operator<<(ostream &ost, const std::pair<double, double> P) {
   ost << "Demand Parameters: " << '\n';
   ost << "******************" << '\n';
-  ost << "Price\t\t =\t\t " << P.alpha << "\t-\t" << P.beta << "  x   Quantity"
+  ost << "Price\t\t =\t\t " << P.first << "\t-\t" << P.second << "  x   Quantity"
       << '\n';
   return ost;
 }
@@ -110,7 +110,7 @@ ostream &cci::operator<<(ostream &ost, const cci::LeadPar P) {
   ost << "******************" << '\n';
   ost << std::fixed;
   ost << cci::prn::label << "Initial carbon credit allotted"
-      << ":" << cci::prn::val << P.carbCredit_init;
+      << ":" << cci::prn::val << P.carbCreditInit;
   ost << '\n';
   ost << cci::prn::label << "Export Limit"
       << ":" << cci::prn::val
@@ -127,6 +127,9 @@ ostream &cci::operator<<(ostream &ost, const cci::LeadPar P) {
       << (P.consum_limit < 0 ? std::numeric_limits<double>::infinity()
                              : P.consum_limit);
   ost << '\n';
+  ost << "Investment Incentives: \n";
+  for (const auto &cc:P.cleanInvVal)
+  ost << cci::prn::label << "Investment ";
   return ost;
 }
 
@@ -144,9 +147,6 @@ ostream &cci::operator<<(ostream &ost, const cci::LeaderVars l) {
   case cci::LeaderVars::Followers:
     ost << "cci::LeaderVars::Followers";
     break;
-  case cci::LeaderVars::Foll2Cpr:
-    ost << "cci::LeaderVars::Foll2Cpr";
-    break;
   case cci::LeaderVars::CarbPrice:
     ost << "cci::LeaderVars::CarbPrice";
     break;
@@ -155,12 +155,6 @@ ostream &cci::operator<<(ostream &ost, const cci::LeaderVars l) {
     break;
   case cci::LeaderVars::CarbImp:
     ost << "cci::LeaderVars::CarbImp";
-    break;
-  case cci::LeaderVars::EnergExpScen:
-    ost << "cci::LeaderVars::EnergExpScen";
-    break;
-  case cci::LeaderVars::EnergImpScen:
-    ost << "cci::LeaderVars::EnergImpScen";
     break;
   case cci::LeaderVars::DualVar:
     ost << "cci::LeaderVars::DualVar";
