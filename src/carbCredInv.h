@@ -184,10 +184,10 @@ public:
   static constexpr double social_cost_of_carbon{1000};
 
 private:
-  const std::vector<const std::string> dirtyEnergy;
-  const std::vector<const std::string> cleanEnergy;
+  const std::vector<std::string> dirtyEnergy;
+  const std::vector<std::string> cleanEnergy;
   /// cci::energy should contain everything in dirtyEnergy and cleanEnergy
-  const std::vector<std::string> energy;
+  std::vector<std::string> energy;
 
   mutable std::map<std::string, double> dataMap{};
 
@@ -249,13 +249,17 @@ public: // Attributes
 
   EPEC() = delete;
 
-  EPEC(GRBEnv *env, const std::vector<const std::string> dirtyEnergy,
-       const std::vector<const std::string> cleanEnergy)
+  EPEC(GRBEnv *env, const std::vector<std::string> dirtyEnergy,
+       const std::vector<std::string> cleanEnergy)
       : Game::EPEC(env), dirtyEnergy{dirtyEnergy}, cleanEnergy{cleanEnergy} {
     if (dirtyEnergy.size() != n_Dirty || cleanEnergy.size() != n_Clean) {
       throw std::string(
           "Error in EPEC(): Illegal size of dirtyEnergy/cleanEnergy");
     }
+		this->energy.clear();
+    this->energy.insert(energy.end(), dirtyEnergy.cbegin(), dirtyEnergy.cend());
+    this->energy.insert(energy.end(), cleanEnergy.cbegin(), cleanEnergy.cend());
+
   }
 
   ///@brief %cci a Standard Nash-Cournot game within a country

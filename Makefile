@@ -15,9 +15,9 @@ BOOSTOPT=
 
 # Armadillo stuff
 ARMA=/opt/armadillo-code
-ARMAINC=-I $(ARMA)/include
+ARMAINC=# -I $(ARMA)/include
 ARMALIB=-larmadillo
-ARMAOPT=$(ARMAINC) $(ARMALIB)
+ARMAOPT=$(ARMAINC) #$(ARMALIB)
 
 # Gurobi stuff
 GUR=/opt/gurobi901/linux64
@@ -27,7 +27,7 @@ GUROPT=$(GURINC)
 
 # Generic objects not requiring changes
 GCC=g++
-OTHEROPTS= -O3 -std=c++11 -I $(SRC) -I $(EPEC_HOME)/include
+OTHEROPTS= -O3 -std=c++14 -I $(SRC) -I $(EPEC_HOME)/include
 OPTS= $(GUROPT) $(ARMAOPT) $(OTHEROPTS) $(BOOSTOPT) 
 LINKOPTS=$(GURLIB) $(ARMALIB) $(BOOSTLIB)
 

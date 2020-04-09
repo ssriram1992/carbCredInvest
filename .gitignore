@@ -10,8 +10,9 @@
 *.~*
 *~
 .*.swp
-ycmBad.py
-ycmGood.py
 .ycm_extra_conf.py
 Sanbox*
+obj/
 tags
+ycmBad.py
+ycmGood.py
