@@ -100,8 +100,8 @@ ostream &cci::operator<<(ostream &ost, const cci::prn ll) {
 ostream &cci::operator<<(ostream &ost, const std::pair<double, double> P) {
   ost << "Demand Parameters: " << '\n';
   ost << "******************" << '\n';
-  ost << "Price\t\t =\t\t " << P.first << "\t-\t" << P.second << "  x   Quantity"
-      << '\n';
+  ost << "Price\t\t =\t\t " << P.first << "\t-\t" << P.second
+      << "  x   Quantity" << '\n';
   return ost;
 }
 
@@ -128,13 +128,13 @@ ostream &cci::operator<<(ostream &ost, const cci::LeadPar P) {
                              : P.consum_limit);
   ost << '\n';
   ost << "Investment Incentives: \n";
-  for (const auto &cc:P.cleanInvVal)
-  ost << cci::prn::label << "Investment ";
+  for (const auto &cc : P.cleanInvVal)
+    ost << cci::prn::label << "Investment ";
   return ost;
 }
 
-template <unsigned int num_scen>
-ostream &cci::operator<<(ostream &ost, const cci::EPECInstance<num_scen> I) {
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int num_scen>
+ostream &cci::operator<<(ostream &ost, const cci::EPECInstance<n_Dirty, n_Clean, num_scen> I) {
   ost << "EPEC Instance: " << '\n';
   ost << "******************" << '\n';
   for (auto a : I.Countries)

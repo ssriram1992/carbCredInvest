@@ -116,8 +116,9 @@ enum class LeaderVars {
   End
 };
 
-template <unsigned int n_Scen>
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
 std::ostream &operator<<(std::ostream &ost, const FollPar<n_Scen> P);
+std::ostream &operator<<(std::ostream &ost, const std::pair<double, double> P);
 
 std::ostream &operator<<(std::ostream &ost, const LeadPar P);
 
@@ -188,7 +189,7 @@ private:
   /// cci::energy should contain everything in dirtyEnergy and cleanEnergy
   const std::vector<std::string> energy;
 
-  std::map<std::string, double> dataMap{};
+  mutable std::map<std::string, double> dataMap{};
 
   static constexpr unsigned int LL_MC_count =
       0; // No market clearing for follower
@@ -354,7 +355,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_obj_leader(
   for (unsigned int f = 0; f < Params.n_followers; ++f) {
     for (unsigned int ii = 0; ii < n_Clean; ++ii) {
       QP_obj.c.at(FollVarCount * f + FollInv + ii) =
-          -1 * Params.LeaderParam.cleanInvVal.at(cleanEnergy.at(ii))
+          -1 * Params.LeaderParam.cleanInvVal.at(cleanEnergy.at(ii));
       // Negative sign because investment has to be maximized
     }
   }
@@ -672,11 +673,11 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
     B(constrCount, FollCarbSel) = +1;
     for (unsigned int ii = 0; ii < n_Dirty; ++ii)
       B(constrCount, FollProdDirty + scen * n_Dirty + ii) =
-          Follparam.emissionCosts.at(
-              dirtyEnergy.at(ii)) for (unsigned int ii = 0; ii < n_Clean; ++ii)
-              B(constrCount, FollProdClean + scen * n_Clean + ii) =
-              Follparam.emissionCosts.at(cleanEnergy.at(ii)) b(constrCount) =
-                  Follparam.carbonCreditInit;
+          Follparam.emissionCosts.at(dirtyEnergy.at(ii));
+    for (unsigned int ii = 0; ii < n_Clean; ++ii)
+      B(constrCount, FollProdClean + scen * n_Clean + ii) =
+          Follparam.emissionCosts.at(cleanEnergy.at(ii));
+    b(constrCount) = Follparam.carbonCreditInit;
   }
   // CONSTRAINTS Described
 
@@ -945,8 +946,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountryMCprice(
 template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
 void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountry(
     const unsigned int i, const std::string filename, const arma::vec x,
-    const bool append) const 
-{
+    const bool append) const {
   // if (!lcp) return;
   // const LeadLocs& Loc = this->Locations.at(i);
   using cci::prn;
@@ -974,7 +974,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountry(
   file.close();
   for (unsigned int j = 0; j < Params.n_followers; ++j)
     this->WriteFollower(i, j, filename, x);
-  file.open(filename, ios::app );
+  file.open(filename, ios::app);
 
   file << "- - - - - - - - - - - - - - - - - - - - - - - - - \n";
   file << "AGGREGATED DETAILS:\n";
@@ -986,7 +986,8 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountry(
     file << "Scenario " << scen + 1 << " with a probability " << prob << '\n';
     double prod{0};
     for (unsigned int j = 0; j < Params.n_followers; j++)
-      prod += dataMap.at("prod_"+std::to_string(i)+"_"+std::to_string(j)+"_"+std::to_string(scen));
+      prod += dataMap.at("prod_" + std::to_string(i) + "_" + std::to_string(j) +
+                         "_" + std::to_string(scen));
     file << prn::label << " Net production: " << prn::val << prod << "\n";
     double price = Params.DemandParam.at(scen).alpha -
                    Params.DemandParam.at(scen).beta * prod;
@@ -996,7 +997,6 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountry(
     Price += (price * prob);
     file << '\n';
   }
-  
 
   file << "\nEXPECTED VALUES\n";
   file << prn::label << "NET PRODUCTION: " << prn::val << Prod << "\n";
@@ -1008,10 +1008,9 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountry(
 //
 template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
 void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteFollower(
-    const unsigned int i,  ///< Leader number
-    const unsigned int j,  ///< Follower number
-    const std::string filename,
-    const arma::vec x) const {
+    const unsigned int i, ///< Leader number
+    const unsigned int j, ///< Follower number
+    const std::string filename, const arma::vec x) const {
   using cci::prn;
   std::ofstream file;
   file.open(filename, ios::app);
@@ -1032,12 +1031,11 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteFollower(
        << x.at(foll_loc + FollCarbBuy) << '\n';
   file << prn::label << "CarbCred sold: " << prn::val
        << x.at(foll_loc + FollCarbSel) << '\n';
-  double carbNet = x.at(foll_loc+FollCarbBuy)  - x.at(foll_loc+FollCarbSel);
+  double carbNet = x.at(foll_loc + FollCarbBuy) - x.at(foll_loc + FollCarbSel);
   file << prn::label << (carbNet > 0 ? "Net purchased: " : "Net sold: ")
        << prn::val << std::abs(carbNet) << '\n';
   file << "Clean Investments\n";
-  for (unsigned int ii = 0; ii < n_Clean; ++ii)
-  {
+  for (unsigned int ii = 0; ii < n_Clean; ++ii) {
     file << prn::label << "Investments in " + this->cleanEnergy.at(ii) + ": "
          << prn::val << x.at(foll_loc + FollInv + ii) << '\n';
   }
@@ -1046,20 +1044,22 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteFollower(
   // , Trade{0};
   for (unsigned int scen = 0; scen < n_Scen; scen++) {
     double prob = Params.scenProb.at(scen);
-    double prod {0};
+    double prod{0};
     file << "\nScenario " << scen + 1 << " with a probability " << prob << '\n';
     file << "\nDirty means of production quantities: \n";
-    unsigned int loc{foll_loc+FollProdDirty+scen*n_Dirty};
-    for (unsigned int ii = 0; ii < n_Dirty; ++ii){
-      prod += x.at(loc+ii);
-      file << prn::label << this->dirtyEnergy.at(ii)+": "<< prn::val << x.at(loc+ii) << '\n';
+    unsigned int loc{foll_loc + FollProdDirty + scen * n_Dirty};
+    for (unsigned int ii = 0; ii < n_Dirty; ++ii) {
+      prod += x.at(loc + ii);
+      file << prn::label << this->dirtyEnergy.at(ii) + ": " << prn::val
+           << x.at(loc + ii) << '\n';
     }
 
     file << "\nClean means of production: \n";
-    loc = {foll_loc+FollProdClean+scen*n_Clean};
-    for (unsigned int ii = 0; ii < n_Clean; ++ii){
-      prod += x.at(loc+ii);
-      file << prn::label << this->cleanEnergy.at(ii)+": "<< prn::val << x.at(loc+ii) << '\n';
+    loc = {foll_loc + FollProdClean + scen * n_Clean};
+    for (unsigned int ii = 0; ii < n_Clean; ++ii) {
+      prod += x.at(loc + ii);
+      file << prn::label << this->cleanEnergy.at(ii) + ": " << prn::val
+           << x.at(loc + ii) << '\n';
     }
 
     Prod += prod * prob;
@@ -1067,7 +1067,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteFollower(
         "prod_" + std::to_string(i) + " " + std::to_string(j) + "_" +
             std::to_string(scen),
         Prod));
-	 	file << prn::label << " Quantity produced: " << prn::val << prod << "\n";
+    file << prn::label << " Quantity produced: " << prn::val << prod << "\n";
     // double trade = x.at(foll_loc + FollCbuyScen + scen) -
     //                x.at(foll_loc + FollCselScen + scen);
     // Trade += trade * prob;
@@ -1097,39 +1097,13 @@ bool cci::EPEC<n_Dirty, n_Clean, n_Scen>::ParamValid(
 ) const
 /**
  * @brief Checks the Validity of cci::LeadAllPar object
- * @details Checks the following:
- * 	-	Size of FollowerParam.costs_lin, FollowerParam.costs_quad,
- * FollowerParam.capacities, FollowerParam.emission_costs are all equal to @p
- * Params.n_followers -	@p DemandParam.alpha and @p DemandParam.beta are greater
- * than zero -	@p name is not empty -	@p name does not match with the name of
- * any other existing countries in the EPEC object.
  */
 {
-  if (Params.n_followers == 0)
-    throw std::string("Error in EPEC::ParamValid(). 0 Followers?");
-  if (Params.FollowerParam.costs_lin.size() != Params.n_followers ||
-      Params.FollowerParam.costs_quad.size() != Params.n_followers ||
-      Params.FollowerParam.emission_costs.size() != Params.n_followers)
-    throw std::string("Error in EPEC::ParamValid(). Size Mismatch");
-  for (unsigned int i = 0; i < n_Scen; ++i) {
-    if (Params.DemandParam[i].alpha <= 0 || Params.DemandParam[i].beta <= 0)
-      throw std::string(
-          "Error in EPEC::ParamValid(). Invalid demand curve params");
-    if (Params.FollowerParam.capacities[i].size() != Params.n_followers)
-      throw std::string(
-          "Error in EPEC::ParamValid(). Size Mismatch in capacity");
-  }
-  // Country should have a name!
-  if (Params.name == "")
-    throw std::string("Error in EPEC::ParamValid(). Country name empty");
-  // Country should have a unique name
-  for (const auto &p : this->AllLeadPars)
-    if (Params.name.compare(p.name) == 0) // i.e., if the strings are same
-      throw std::string("Error in EPEC::ParamValid(). Country name repetition");
+  std::cout << Params.name << " parameters not checked! Warning!!!\n";
   return true;
 }
 
-template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+template <unsigned int n_Scen>
 std::ostream &cci::operator<<(std::ostream &ost,
                               const cci::LeadAllPar<n_Scen> P) {
   ost << "\n\n";
@@ -1143,7 +1117,11 @@ std::ostream &cci::operator<<(std::ostream &ost,
   ost << cci::prn::label << "Number of followers"
       << ":" << cci::prn::val << P.n_followers << "\n "
       << "\n";
-  ost << '\n' << P.LeaderParam << '\n' << P.FollowerParam << '\n';
+  ost << '\n' << P.LeaderParam << '\n';
+  ost << "Follower Parameters: " << '\n';
+  ost << "********************" << '\n';
+  for (unsigned int ff = 0; ff < P.n_followers; ff++)
+    ost << P.FollowerParam.at(ff) << '\n';
   ost << "\n Random scenario probabilities: ";
   for (unsigned int i = 0; i < n_Scen; ++i) {
     ost << "Scenario " << i + 1
@@ -1157,34 +1135,24 @@ std::ostream &cci::operator<<(std::ostream &ost,
 
 template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
 std::ostream &cci::operator<<(std::ostream &ost, const cci::FollPar<n_Scen> P) {
-  ost << "Follower Parameters: " << '\n';
-  ost << "********************" << '\n';
-  ost << cci::prn::label << "Linear Costs"
-      << ":\t";
-  for (auto a : P.costs_lin)
-    ost << cci::prn::val << a;
-  ost << '\n'
-      << cci::prn::label << "Quadratic costs"
-      << ":\t";
-  for (auto a : P.costs_quad)
-    ost << cci::prn::val << a;
-  ost << '\n'
-      << cci::prn::label << "Production capacities"
-      << ":\n";
-  // for (unsigned int i = 0; i < n_Scen; i++) {
-  // for (auto sc : P.capacities.at(i)) {
-  // ost << "\t Scenario " << i + 1 << ": (";
-  // for (auto a : sc)
-  // ost << cci::prn::val
-  // << (a < 0 ? std::numeric_limits<double>::infinity() : a);
-  // ost << ")\n ";
-  // }
-  // }
-  ost << '\n'
-      << cci::prn::label << "Carbon emission"
-      << ":\t";
-  for (auto a : P.emission_costs)
-    ost << cci::prn::val << a;
+  using cci::prn;
+
+  ost << "Follower: " << P.name << '\n';
+  for (const auto &ccc : P.capacities) {
+    const auto prodName = ccc.first;
+    ost << "\t *****" << prodName << "*****\n";
+    const auto prodCost = P.productionCosts.at(prodName);
+    ost << "\t " << prn::label << "Prodn cost: " << prn::val << prodCost.first
+        << "q+0.5" << prodCost.second << "q*q\n";
+    ost << "\t" << prn::label << "Capacity: " << prn::val << ccc.second << '\n';
+    if (P.investmentCosts.find(prodName) != P.investmentCosts.end()) {
+      const auto invc = P.investmentCosts.at(prodName);
+      ost << "\t" << prn::label << "Investment cost:" << prn::val << invc.first
+          << "y + 0.5" << invc.second << "y*y\n";
+    }
+    ost << "\t" << prn::label << "Emission cost: " << prn::val
+        << P.emissionCosts.at(prodName) << '\n';
+  }
   ost << '\n';
   return ost;
 }
