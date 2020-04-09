@@ -51,7 +51,7 @@ struct LeadPar {
 
   // Investment terms in the objective
   std::map<std::string, double>
-      cleanInvVal; ///< Linear coefficient in the objective for each time of
+      cleanInvVal; ///< Linear coefficient in the objective for each type of
                    ///< domestic investment
   std::map<std::string, double>
       cleanInvCrossVal; ///< Coefficient in the objective for  products of
@@ -187,6 +187,9 @@ private:
   const std::vector<const std::string> cleanEnergy;
   /// cci::energy should contain everything in dirtyEnergy and cleanEnergy
   const std::vector<std::string> energy;
+
+  std::map<std::string, double> dataMap{};
+
   static constexpr unsigned int LL_MC_count =
       0; // No market clearing for follower
 
@@ -383,7 +386,6 @@ template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
 cci::EPEC<n_Dirty, n_Clean, n_Scen> &
 cci::EPEC<n_Dirty, n_Clean, n_Scen>::addCountry(
     cci::LeadAllPar<n_Scen> Params) {
-  // const unsigned int addnlLeadVars) {
   if (this->finalized)
     throw std::string(
         "Error in cci::EPEC<n_Dirty,n_Clean,n_Scen>::addCountry: EPEC object "
@@ -933,18 +935,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountryMCprice(
   file << "**************************************************\n";
   file << prn::label << "Carbon Price: " << prn::val
        << x.at(this->getPosition(this->getNcountries() - 1, LeaderVars::End));
-  const LeadAllPar<n_Scen> &Params = this->AllLeadPars.at(0);
-  double Price{0};
-  for (unsigned int scen = 0; scen < n_Scen; scen++) {
-    double prob = Params.scenProb.at(scen);
-    file << "\nScenario " << scen + 1 << " with a probability " << prob << '\n';
-    double price{x.at(
-        this->getPosition(this->getNcountries() - 1, LeaderVars::End) + scen)};
-    file << prn::label << "Energy Price: " << prn::val << price;
-    Price += price * prob;
-  }
-  file << prn::label << "\nEXPECTED ENERGY PRICE: " << prn::val << Price
-       << "\n";
+
   file << "**************************************************\n";
 
   file << "\n\n\n";
@@ -954,7 +945,8 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountryMCprice(
 template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
 void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountry(
     const unsigned int i, const std::string filename, const arma::vec x,
-    const bool append) const {
+    const bool append) const 
+{
   // if (!lcp) return;
   // const LeadLocs& Loc = this->Locations.at(i);
   using cci::prn;
@@ -973,45 +965,8 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountry(
 
   file << "Carbon credit details\n";
   file << prn::label << "Initial credit: " << prn::val << carbInit << "\n";
-  ;
   file << prn::label << "Net Export: " << prn::val << carbExp - carbImp << "\n";
-  ;
   file << prn::label << "Domestic price: " << prn::val << carbDomPrice << "\n";
-  ;
-  double Expo{0}, Prod{0}, Price{0}, C2p{0};
-  file << "\n";
-  for (unsigned int scen = 0; scen < n_Scen; scen++) {
-    double prob = Params.scenProb.at(scen);
-    file << "Scenario " << scen + 1 << " with a probability " << prob << '\n';
-    double prod{0};
-    for (unsigned int j = 0; j < Params.n_followers; j++)
-      prod += x.at(this->getPosition(i, LeaderVars::Followers) +
-                   j * FollVarCount + FollProdScen + scen);
-    file << prn::label << " Net production: " << prn::val << prod << "\n";
-    double expo = x.at(this->getPosition(i, LeaderVars::EnergExpScen) + scen);
-    double impo = x.at(this->getPosition(i, LeaderVars::EnergImpScen) + scen);
-    file << prn::label << " Net energy export: " << prn::val << (expo - impo)
-         << "\n";
-    double price = Params.DemandParam.at(scen).alpha -
-                   Params.DemandParam.at(scen).beta * (prod + impo - expo);
-    file << prn::label << " Domestic energy price: " << prn::val << price
-         << "\n";
-    double c2p = x.at(this->getPosition(i, LeaderVars::Foll2Cpr) + scen);
-    file << prn::label << " Carbon 2ndary mkt price: " << prn::val << c2p
-         << "\n";
-    Prod += (prod * prob);
-    Expo += (expo - impo) * prob;
-    Price += (price * prob);
-    C2p += (c2p * prob);
-    file << '\n';
-  }
-  file << "\nEXPECTED VALUES\n";
-  file << prn::label << "NET PRODUCTION: " << prn::val << Prod << "\n";
-  file << prn::label << "NET ENERGY EXPORT: " << prn::val << Expo << "\n";
-  file << prn::label << "DOMESTIC CONSUMPTION: " << prn::val << Prod - Expo
-       << "\n";
-  file << prn::label << "DOMESTIC ENERGY PRICE: " << prn::val << Price << "\n";
-  file << prn::label << "CARBON 2nd PRICE: " << prn::val << C2p << "\n";
 
   // Follower productions
   file << "- - - - - - - - - - - - - - - - - - - - - - - - - \n";
@@ -1019,6 +974,33 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountry(
   file.close();
   for (unsigned int j = 0; j < Params.n_followers; ++j)
     this->WriteFollower(i, j, filename, x);
+  file.open(filename, ios::app );
+
+  file << "- - - - - - - - - - - - - - - - - - - - - - - - - \n";
+  file << "AGGREGATED DETAILS:\n";
+
+  double Prod{0}, Price{0};
+  file << "\n";
+  for (unsigned int scen = 0; scen < n_Scen; scen++) {
+    double prob = Params.scenProb.at(scen);
+    file << "Scenario " << scen + 1 << " with a probability " << prob << '\n';
+    double prod{0};
+    for (unsigned int j = 0; j < Params.n_followers; j++)
+      prod += dataMap.at("prod_"+std::to_string(i)+"_"+std::to_string(j)+"_"+std::to_string(scen));
+    file << prn::label << " Net production: " << prn::val << prod << "\n";
+    double price = Params.DemandParam.at(scen).alpha -
+                   Params.DemandParam.at(scen).beta * prod;
+    file << prn::label << " Domestic energy price: " << prn::val << price
+         << "\n";
+    Prod += (prod * prob);
+    Price += (price * prob);
+    file << '\n';
+  }
+  
+
+  file << "\nEXPECTED VALUES\n";
+  file << prn::label << "NET PRODUCTION: " << prn::val << Prod << "\n";
+  file << prn::label << "DOMESTIC ENERGY PRICE: " << prn::val << Price << "\n";
   //
   // file << "\n\n\n";
   // FILE OPERATIONS END
@@ -1026,7 +1008,9 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountry(
 //
 template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
 void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteFollower(
-    const unsigned int i, const unsigned int j, const std::string filename,
+    const unsigned int i,  ///< Leader number
+    const unsigned int j,  ///< Follower number
+    const std::string filename,
     const arma::vec x) const {
   using cci::prn;
   std::ofstream file;
@@ -1045,29 +1029,63 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteFollower(
   const unsigned int foll_loc{this->getPosition(i, LeaderVars::Followers) +
                               j * FollVarCount};
   file << prn::label << "CarbCred purchased: " << prn::val
-       << x.at(foll_loc + FollCarb) << '\n';
-  double Prod{0}, Trade{0};
+       << x.at(foll_loc + FollCarbBuy) << '\n';
+  file << prn::label << "CarbCred sold: " << prn::val
+       << x.at(foll_loc + FollCarbSel) << '\n';
+  double carbNet = x.at(foll_loc+FollCarbBuy)  - x.at(foll_loc+FollCarbSel);
+  file << prn::label << (carbNet > 0 ? "Net purchased: " : "Net sold: ")
+       << prn::val << std::abs(carbNet) << '\n';
+  file << "Clean Investments\n";
+  for (unsigned int ii = 0; ii < n_Clean; ++ii)
+  {
+    file << prn::label << "Investments in " + this->cleanEnergy.at(ii) + ": "
+         << prn::val << x.at(foll_loc + FollInv + ii) << '\n';
+  }
+
+  double Prod{0};
+  // , Trade{0};
   for (unsigned int scen = 0; scen < n_Scen; scen++) {
     double prob = Params.scenProb.at(scen);
+    double prod {0};
     file << "\nScenario " << scen + 1 << " with a probability " << prob << '\n';
-    double prod = x.at(foll_loc + FollProdScen + scen);
+    file << "\nDirty means of production quantities: \n";
+    unsigned int loc{foll_loc+FollProdDirty+scen*n_Dirty};
+    for (unsigned int ii = 0; ii < n_Dirty; ++ii){
+      prod += x.at(loc+ii);
+      file << prn::label << this->dirtyEnergy.at(ii)+": "<< prn::val << x.at(loc+ii) << '\n';
+    }
+
+    file << "\nClean means of production: \n";
+    loc = {foll_loc+FollProdClean+scen*n_Clean};
+    for (unsigned int ii = 0; ii < n_Clean; ++ii){
+      prod += x.at(loc+ii);
+      file << prn::label << this->cleanEnergy.at(ii)+": "<< prn::val << x.at(loc+ii) << '\n';
+    }
+
     Prod += prod * prob;
-    file << prn::label << " Quantity produced: " << prn::val << prod << "\n";
-    double trade = x.at(foll_loc + FollCbuyScen + scen) -
-                   x.at(foll_loc + FollCselScen + scen);
-    Trade += trade * prob;
-    file << prn::label
-         << ((trade > 0) ? " CarbCred purchased in 2nd stage mkt: "
-                         : " CarbCred sold in 2nd stage mkt:")
-         << prn::val << std::abs(trade) << "\n";
+    dataMap.insert(std::pair<std::string, double>(
+        "prod_" + std::to_string(i) + " " + std::to_string(j) + "_" +
+            std::to_string(scen),
+        Prod));
+	 	file << prn::label << " Quantity produced: " << prn::val << prod << "\n";
+    // double trade = x.at(foll_loc + FollCbuyScen + scen) -
+    //                x.at(foll_loc + FollCselScen + scen);
+    // Trade += trade * prob;
+    // file << prn::label
+    //      << ((trade > 0) ? " CarbCred purchased in 2nd stage mkt: "
+    //                      : " CarbCred sold in 2nd stage mkt:")
+    //      << prn::val << std::abs(trade) << "\n";
   }
 
   file << "\nEXPECTED VALUES\n";
   file << prn::label << " QUANTITY PRODUCED: " << prn::val << Prod << "\n";
-  file << prn::label
-       << ((Trade > 0) ? " CARBCRED PURCHASED IN 2ND STAGE MKT: "
-                       : " CARBCRED SOLD IN 2ND STAGE MKT:")
-       << prn::val << std::abs(Trade) << "\n";
+  //
+  dataMap.insert(std::pair<std::string, double>(
+      "expProd_" + std::to_string(i) + " " + std::to_string(j), Prod));
+  // file << prn::label
+  //      << ((Trade > 0) ? " CARBCRED PURCHASED IN 2ND STAGE MKT: "
+  //                      : " CARBCRED SOLD IN 2ND STAGE MKT:")
+  //      << prn::val << std::abs(Trade) << "\n";
   file << '\n';
 
   file.close();
@@ -1182,7 +1200,7 @@ std::ostream &cci::operator<<(std::ostream &ost, const cci::FollPar<n_Scen> P) {
 // return ost;
 // }
 
-template <unsigned int n_Scen>
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
 void cci::EPEC<n_Dirty, n_Clean, n_Scen>::initializeSoln(
     arma::vec &init_x) const {
   double chiToArg_Carb{20};
