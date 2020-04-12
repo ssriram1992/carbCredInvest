@@ -134,7 +134,9 @@ ostream &cci::operator<<(ostream &ost, const cci::LeadPar P) {
 }
 
 template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int num_scen>
-ostream &cci::operator<<(ostream &ost, const cci::EPECInstance<n_Dirty, n_Clean, num_scen> I) {
+ostream &
+cci::operator<<(ostream &ost,
+                const cci::EPECInstance<n_Dirty, n_Clean, num_scen> I) {
   ost << "EPEC Instance: " << '\n';
   ost << "******************" << '\n';
   for (auto a : I.Countries)
@@ -152,6 +154,12 @@ ostream &cci::operator<<(ostream &ost, const cci::LeaderVars l) {
     break;
   case cci::LeaderVars::CarbExp:
     ost << "cci::LeaderVars::CarbExp";
+    break;
+  case cci::LeaderVars::TotInv:
+    ost << "cci::LeaderVars::TotInv";
+    break;
+  case cci::LeaderVars::TotEmission:
+    ost << "cci::LeaderVars::TotEmission";
     break;
   case cci::LeaderVars::CarbImp:
     ost << "cci::LeaderVars::CarbImp";

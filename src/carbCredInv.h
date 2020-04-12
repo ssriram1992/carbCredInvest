@@ -26,8 +26,8 @@ template <unsigned int n_Scen> struct FollPar {
   std::map<std::string, std::pair<double, double>> productionCosts;
   /// Production capacity of each prodType
   std::map<std::string, double> capacities;
-  /// Renewable capacity adjustment for each scenario
-  std::array<double, n_Scen> renewCapAdjust;
+  /// Renewable capacity adjustment (capacity factor) for each scenario
+  std::array<std::map<std::string, double>, n_Scen> renewCapAdjust;
   ///	Linear and QUadratic Investment costs for renewables
   std::map<std::string, std::pair<double, double>> investmentCosts;
   /// Emission costs for unit quantity of the fuel. Emission costs feature only
@@ -37,6 +37,7 @@ template <unsigned int n_Scen> struct FollPar {
   double carbonCreditInit = 0;
   std::string name = {}; ///< Optional Names for the Followers.
   FollPar() = default;
+  FollPar(std::string name, double cCI) : carbonCreditInit{cCI}, name{name} {}
 };
 
 /// @brief Stores the parameters of the leader in a country model
@@ -256,10 +257,9 @@ public: // Attributes
       throw std::string(
           "Error in EPEC(): Illegal size of dirtyEnergy/cleanEnergy");
     }
-		this->energy.clear();
+    this->energy.clear();
     this->energy.insert(energy.end(), dirtyEnergy.cbegin(), dirtyEnergy.cend());
     this->energy.insert(energy.end(), cleanEnergy.cbegin(), cleanEnergy.cend());
-
   }
 
   ///@brief %cci a Standard Nash-Cournot game within a country
@@ -667,8 +667,9 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
       constrCount++;
     }
     for (unsigned int ii = 0; ii < n_Clean; ++ii) {
+      const auto energ = cleanEnergy.at(ii);
       B(constrCount, FollProdClean + scen * n_Clean + ii) = 1;
-      b(constrCount) = infCap.at(cleanEnergy.at(ii)) + renCapAdj.at(scen);
+      b(constrCount) = infCap.at(energ) * renCapAdj.at(scen).at(energ);
       // Next constraint
       constrCount++;
     }
