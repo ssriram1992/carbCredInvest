@@ -129,7 +129,8 @@ ostream &cci::operator<<(ostream &ost, const cci::LeadPar P) {
   ost << '\n';
   ost << "Investment Incentives: \n";
   for (const auto &cc : P.cleanInvVal)
-    ost << cci::prn::label << "Investment " << cci::prn::val << cc.first<<";"<<cc.second <<'\n';
+    ost << cci::prn::label << "Investment " << cci::prn::val << cc.first << ";"
+        << cc.second << '\n';
   return ost;
 }
 

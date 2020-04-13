@@ -667,6 +667,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
     for (unsigned int ii = 0; ii < n_Clean; ++ii) {
       const auto energ = cleanEnergy.at(ii);
       B(constrCount, FollProdClean + scen * n_Clean + ii) = 1;
+      B(constrCount, FollInv + ii) = -1 * renCapAdj.at(scen).at(energ);
       b(constrCount) = infCap.at(energ) * renCapAdj.at(scen).at(energ);
       // Next constraint
       constrCount++;
@@ -938,8 +939,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountryMCprice(
   file << "**************************************************\n";
   file << "INTERNATIONAL PRICES\n";
   file << "**************************************************\n";
-  file << prn::label << "Carbon Price: " << prn::val
-       << x.at(this->getPosition(this->getNcountries() - 1, LeaderVars::End));
+  file << prn::label << "Carbon Price: " << prn::val << x.at(this->getPosition(this->getNcountries() - 1, LeaderVars::End))<<'\n';
 
   file << "**************************************************\n";
 
@@ -1068,7 +1068,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteFollower(
 
     Prod += prod * prob;
     dataMap.insert(std::pair<std::string, double>(
-        "prod_" + std::to_string(i) + " " + std::to_string(j) + "_" +
+        "prod_" + std::to_string(i) + "_" + std::to_string(j) + "_" +
             std::to_string(scen),
         Prod));
     file << prn::label << " Quantity produced: " << prn::val << prod << "\n";
