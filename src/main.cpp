@@ -203,7 +203,21 @@ int main() {
                                                  cleanEnergy);
   epec.addCountry(c1).addCountry(c2);
   epec.finalize();
-  epec.setAlgorithm(Game::EPECalgorithm::innerApproximation);
+  epec.setAlgorithm(Game::EPECalgorithm::fullEnumeration);
+	cout << "Now finding Nash Equilibrium";
+	std::string temp = R"(
+   #
+  # #    #        ####    ####   #####      #     #####  #    #  #    #
+ #   #   #       #    #  #    #  #    #     #       #    #    #  ##  ##
+#     #  #       #       #    #  #    #     #       #    ######  # ## #
+#######  #       #  ###  #    #  #####      #       #    #    #  #    #
+#     #  #       #    #  #    #  #   #      #       #    #    #  #    #
+#     #  ######   ####    ####   #    #     #       #    #    #  #    #
+
+			)";
+	cout << temp;
+ boost::log::core::get()->set_filter(boost::log::trivial::severity >= boost::log::trivial::info);    
+	 
   // epec.setAggressiveness(1);
   epec.findNashEq();
   epec.writeSolution(1, "dat/Sol.txt");
