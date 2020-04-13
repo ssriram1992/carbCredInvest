@@ -8,7 +8,7 @@ FILEEPEC=$(OBJ)/LCPtoLP.o $(OBJ)/Games.o $(OBJ)/Utils.o
 ARGS=
 
 # Logging
-BOOST_HOME=/usr/local/lib
+BOOST_HOME=/usr/local
 BOOST_LIB_D=$(BOOST_HOME)/lib/libboost_
 BOOSTLIB=$(BOOST_LIB_D)unit_test_framework.a $(BOOST_LIB_D)program_options.a  $(BOOST_LIB_D)log.a $(BOOST_LIB_D)log_setup.a $(BOOST_LIB_D)system.a $(BOOST_LIB_D)thread.a $(BOOST_LIB_D)chrono.a  -lpthread $(BOOST_LIB_D)prg_exec_monitor.a
 BOOSTOPT=
