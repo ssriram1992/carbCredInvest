@@ -363,6 +363,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_obj_leader(
   const LeadAllPar<n_Scen> &Params = this->AllLeadPars.at(i);
   const LeadLocs &Loc = this->Locations.at(i);
 
+	BOOST_LOG_TRIVIAL(debug) << "In cci::EPEC::make_obj_leader";
   QP_obj.Q.zeros(nThisCountryvars, nThisCountryvars);
   QP_obj.c.zeros(nThisCountryvars);
   QP_obj.C.zeros(nThisCountryvars, nEPECvars - nThisCountryvars);
@@ -411,29 +412,6 @@ template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
 cci::EPEC<n_Dirty, n_Clean, n_Scen> &
 cci::EPEC<n_Dirty, n_Clean, n_Scen>::addCountry(
     cci::LeadAllPar<n_Scen> Params) {
-  if (this->finalized)
-    throw std::string(
-        "Error in cci::EPEC<n_Dirty,n_Clean,n_Scen>::addCountry: EPEC object "
-        "finalized. Call "
-        "EPEC::unlock() to unlock this object first and then edit.");
-
-  bool noError = false;
-  try {
-    noError = this->ParamValid(Params);
-  } catch (const char *e) {
-    cerr << "Error in cci::EPEC<n_Dirty,n_Clean,n_Scen>::addCountry: " << e
-         << '\n';
-  } catch (std::string e) {
-    cerr << "String: Error in cci::EPEC<n_Dirty,n_Clean,n_Scen>::addCountry: "
-         << e << '\n';
-  } catch (std::exception &e) {
-    cerr
-        << "Exception: Error in cci::EPEC<n_Dirty,n_Clean,n_Scen>::addCountry: "
-        << e.what() << '\n';
-  }
-
-  if (!noError)
-    return *this;
 
   LeadLocs Loc;
   cci::init(Loc);
@@ -470,7 +448,7 @@ cci::EPEC<n_Dirty, n_Clean, n_Scen>::addCountry(
   arma::sp_mat LeadCons(import_lim_cons +     // Import limit constraint
                             export_lim_cons + // Export limit constraint
                             n_Scen +          // Min consumption
-                            2 +               // Investment summing
+                            2*n_Clean +       // Investment summing
                             2 +               // Emission summing
                             1,                // Carbon credits >=0
                         Loc[cci::LeaderVars::End] - this->LL_MC_count);
@@ -527,7 +505,7 @@ cci::EPEC<n_Dirty, n_Clean, n_Scen>::addCountry(
 
   this->LeadConses.push_back(N->RewriteLeadCons()); // Not mandatory!
   this->AllLeadPars.push_back(Params);
-  this->Game::EPEC::n_MCVar = 1 + n_Scen;
+  this->Game::EPEC::n_MCVar = 1;
   return *this;
 }
 
