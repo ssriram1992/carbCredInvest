@@ -36,8 +36,9 @@ template <unsigned int n_Scen> struct FollPar {
 
   double carbonCreditInit = 0;
   std::string name = {}; ///< Optional Names for the Followers.
-  FollPar() = default;
-  FollPar(std::string name, double cCI) : carbonCreditInit{cCI}, name{name} {}
+
+  FollPar(double cCI = 0, std::string name = "")
+      : carbonCreditInit{cCI}, name{name} {}
 };
 
 /// @brief Stores the parameters of the leader in a country model
@@ -52,26 +53,31 @@ struct LeadPar {
 
   // Investment terms in the objective
   std::map<std::string, double>
-      cleanInvVal; ///< Linear coefficient in the objective for each type of
-                   ///< domestic investment
+      cleanInvVal{}; ///< Linear coefficient in the objective for each type of
+                     ///< domestic investment
   std::map<std::string, double>
-      cleanInvCrossVal; ///< Coefficient in the objective for  products of
-                        ///< domestic investments and investment by others
+      cleanInvCrossVal{}; ///< Coefficient in the objective for  products of
+                          ///< domestic investments and investment by others
   // Never considering square of domestic investment as it causes loss of
   // convexity
 
   // Emission terms in the objective
-  double emissionVal;      ///< Linear coefficient in the objective for domestic
-                           ///< emission
-  bool emissionValQuad{0}; ///< For the product, should we also consider
-                           ///< square of domestic emissions
-  double emissionCrossVal; ///< Coefficient in the objective for  products of
-                           ///< domestic emission and emission by others
+  double emissionVal; ///< Linear coefficient in the objective for domestic
+                      ///< emission
+  double emissionValQuad{0}; ///< For the product, should we also consider
+                             ///< square of domestic emissions
+  double emissionCrossVal;   ///< Coefficient in the objective for  products of
+                             ///< domestic emission and emission by others
 
   LeadPar(double imp_lim = -1, double exp_lim = -1, double consum_limit = 0,
-          double carbCred = 0)
+          double carbCred = 0, double emitVal = 0, double emitQuad = 0,
+          double emitCross = 0, std::map<std::string, double> clInvVal = {},
+          std::map<std::string, double> clInvCros = {})
       : import_limit{imp_lim}, export_limit{exp_lim},
-        consum_limit{consum_limit}, carbCreditInit{carbCred} {}
+        consum_limit{consum_limit}, carbCreditInit{carbCred},
+        cleanInvVal{clInvVal}, cleanInvCrossVal{clInvCros},
+        emissionVal{emitVal}, emissionValQuad{emitQuad}, emissionCrossVal{
+                                                             emitCross} {}
 };
 
 /// @brief Stores the parameters of a country model
@@ -84,6 +90,12 @@ template <unsigned int n_Scen> struct LeadAllPar {
   std::array<std::pair<double, double>, n_Scen> DemandParam = {
       {}}; ///< To hold Demand Parameters - intercept and slope
   std::array<double, n_Scen> scenProb = {{}};
+  LeadAllPar(unsigned int n_followers, std::string name,
+             std::vector<cci::FollPar<n_Scen>> FP, cci::LeadPar LP,
+             std::array<std::pair<double, double>, n_Scen> DP,
+             std::array<double, n_Scen> sP = {})
+      : n_followers{n_followers}, name{name}, FollowerParam{FP},
+        LeaderParam{LP}, DemandParam{DP}, scenProb{sP} {}
 };
 
 /// @brief Stores a single Instance
@@ -356,11 +368,19 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_obj_leader(
   QP_obj.C.zeros(nThisCountryvars, nEPECvars - nThisCountryvars);
 
   // Total investment locally
-  for (unsigned int f = 0; f < Params.n_followers; ++f) {
-    for (unsigned int ii = 0; ii < n_Clean; ++ii) {
-      QP_obj.c.at(FollVarCount * f + FollInv + ii) =
-          -1 * Params.LeaderParam.cleanInvVal.at(cleanEnergy.at(ii));
-      // Negative sign because investment has to be maximized
+  for (unsigned int ii = 0; ii < n_Clean; ++ii) {
+    QP_obj.c.at(Loc.at(LeaderVars::TotInv) + ii) =
+        -1 * Params.LeaderParam.cleanInvVal.at(cleanEnergy.at(ii));
+    // Negative sign because investment has to be maximized
+  }
+  // Total investment cross terms
+  for (unsigned int ii = 0; ii < n_Clean; ++ii) {
+    for (unsigned int cc = 0; cc < this->getNcountries(); ++cc) {
+      QP_obj.C(Loc.at(LeaderVars::TotInv) + ii,
+               this->getPosition(this->getNcountries() - 1,
+                                 cci::LeaderVars::TotInv + ii) -
+                   nThisCountryvars) =
+          Params.LeaderParam.cleanInvCrossVal.at(cleanEnergy.at(ii));
     }
   }
 
@@ -425,13 +445,13 @@ cci::EPEC<n_Dirty, n_Clean, n_Scen>::addCountry(
   cci::increaseVal(Loc, LeaderVars::CarbExp, 1);
   cci::increaseVal(Loc, LeaderVars::CarbImp, 1);
   cci::increaseVal(Loc, LeaderVars::CarbPrice, 1);
-  cci::increaseVal(Loc, LeaderVars::TotInv, 1);
+  cci::increaseVal(Loc, LeaderVars::TotInv, n_Clean);
   cci::increaseVal(Loc, LeaderVars::TotEmission, 1);
 
-  constexpr unsigned int LeadVars =
+  const unsigned int LeadVars =
       Loc.at(cci::LeaderVars::End) - this->FollVarCount * Params.n_followers;
-  // Should be 5 - one for CarbExp, one for CarbImp, one for CarbPrice, and one
-  // each for TotInv and TotEmission
+  // Should be 4+n_Clean - one for CarbExp, one for CarbImp, one for CarbPrice,
+  // and n_Clean each for TotInv and TotEmission
 
   // Leader Constraints
   const short int import_lim_cons = [&Params]() {
@@ -655,7 +675,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
   // OBJECTIVE Described
 
   // CONSTRAINTS
-  const auto &infCap = Follparam.capacity;
+  const auto &infCap = Follparam.capacities;
   const auto &renCapAdj = Follparam.renewCapAdjust;
   unsigned int constrCount{0};
   for (unsigned int scen = 0; scen < n_Scen; ++scen) {
@@ -741,13 +761,14 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_LeadCons(
     constrCount++;
   }
   // Investment summing
-  for (unsigned int ff = 0; ff < Params.n_followers; ++ff) {
-    for (unsigned int ii = 0; ii < n_Clean; ++ii) {
+
+  for (unsigned int ii = 0; ii < n_Clean; ++ii) {
+    for (unsigned int ff = 0; ff < Params.n_followers; ++ff) {
       LeadCons(constrCount, FollVarCount * ff + FollInv + ii) = 1;
       LeadCons(constrCount + 1, FollVarCount * ff + FollInv + ii) = -1;
     }
-    LeadCons(constrCount, Loc.at(LeaderVars::TotInv)) = -1;
-    LeadCons(constrCount + 1, Loc.at(LeaderVars::TotInv)) = 1;
+    LeadCons(constrCount, Loc.at(LeaderVars::TotInv) + ii) = -1;
+    LeadCons(constrCount + 1, Loc.at(LeaderVars::TotInv) + ii) = 1;
   }
   constrCount += 2;
   // Expected Emission summing
@@ -966,7 +987,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountry(
   double carbDomPrice = x.at(this->getPosition(i, cci::LeaderVars::CarbPrice));
   double carbImp = x.at(this->getPosition(i, cci::LeaderVars::CarbImp));
   double carbExp = x.at(this->getPosition(i, cci::LeaderVars::CarbExp));
-  double carbInit = Params.LeaderParam.carbCredit_init;
+  double carbInit = Params.LeaderParam.carbCreditInit;
 
   file << "Carbon credit details\n";
   file << prn::label << "Initial credit: " << prn::val << carbInit << "\n";
@@ -994,8 +1015,8 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountry(
       prod += dataMap.at("prod_" + std::to_string(i) + "_" + std::to_string(j) +
                          "_" + std::to_string(scen));
     file << prn::label << " Net production: " << prn::val << prod << "\n";
-    double price = Params.DemandParam.at(scen).alpha -
-                   Params.DemandParam.at(scen).beta * prod;
+    double price = Params.DemandParam.at(scen).first -
+                   Params.DemandParam.at(scen).second* prod;
     file << prn::label << " Domestic energy price: " << prn::val << price
          << "\n";
     Prod += (prod * prob);
@@ -1024,7 +1045,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteFollower(
   //
   std::string name;
   try {
-    name = Params.name + " --- " + Params.FollowerParam.names.at(j);
+    name = Params.name + " --- " + Params.FollowerParam.at(j).name;
   } catch (...) {
     name = "Follower " + std::to_string(j) + " of leader " + std::to_string(i);
   }
@@ -1123,10 +1144,10 @@ std::ostream &cci::operator<<(std::ostream &ost,
       << ":" << cci::prn::val << P.n_followers << "\n "
       << "\n";
   ost << '\n' << P.LeaderParam << '\n';
-  ost << "Follower Parameters: " << '\n';
-  ost << "********************" << '\n';
-  for (unsigned int ff = 0; ff < P.n_followers; ff++)
-    ost << P.FollowerParam.at(ff) << '\n';
+  // ost << "Follower Parameters: " << '\n';
+  // ost << "********************" << '\n';
+  // for (unsigned int ff = 0; ff < P.n_followers; ff++)
+  //   ost << P.FollowerParam.at(ff) << '\n';
   ost << "\n Random scenario probabilities: ";
   for (unsigned int i = 0; i < n_Scen; ++i) {
     ost << "Scenario " << i + 1
