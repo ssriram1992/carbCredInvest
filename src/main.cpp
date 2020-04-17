@@ -96,8 +96,8 @@ int main() {
   emitCost["coal"] = 2;
   emitCost["gas"] = 1;
   prodCost["gas"] = {15, 0.5};
-  invCost["wind"] = {1, 0};
-  invCost["solar"] = {1, 0};
+  invCost["wind"] = {10, 0};
+  invCost["solar"] = {15, 0};
 
   // Country 1, first Follower
   cci::FollPar<NUM_SCEN> c1F1(15, string("c1F1"));
@@ -107,7 +107,7 @@ int main() {
   c1F1.emissionCosts = emitCost;
   c1F1.renewCapAdjust = capFac1;
   c1F1.capacities =
-      makeMap<string, double>(energy, vector<double>{50, 30, 10, 0});
+      makeMap<string, double>(energy, vector<double>{15, 3, 1, 0});
 
   // Country 1, second follower
   cci::FollPar<NUM_SCEN> c1F2(10, string("c1F2"));
@@ -117,7 +117,7 @@ int main() {
   c1F2.emissionCosts = emitCost;
   c1F2.renewCapAdjust = capFac1;
   c1F2.capacities =
-      makeMap<string, double>(energy, vector<double>{5, 2, 4, 0});
+      makeMap<string, double>(energy, vector<double>{5, 2, 4, 10});
 
   // Country 2, first Follower
   cci::FollPar<NUM_SCEN> c2F1(15, string("c2F1"));
@@ -147,17 +147,17 @@ int main() {
   cci::LeadPar Country1Par(-1, // Import limit
                            -1, // Export limit
                            12, // Min reqd consum
-                           20, // Carbon credit
+                           200, // Carbon credit
                            10, // emitVals
-                           1, 2, makeMap(cleanEnergy, vector<double>{100, 100}),
+                           1, 2, makeMap(cleanEnergy, vector<double>{100, 50}),
                            makeMap(cleanEnergy, vector<double>{0, 0}));
 
   cci::LeadPar Country2Par(-1, // Import limit
                            -1, // Export limit
                            13, // Min reqd consum
-                           22, // Carbon credit
+                           220, // Carbon credit
                            10, // emitVals
-                           1, 2, makeMap(cleanEnergy, vector<double>{100, 100}),
+                           1, 2, makeMap(cleanEnergy, vector<double>{50, 100}),
                            makeMap(cleanEnergy, vector<double>{0, 0}));
 
   linQuad DP1s1 = {1000, 1};
@@ -167,9 +167,9 @@ int main() {
   array<linQuad, NUM_SCEN> DP1 = {DP1s1};
   array<linQuad, NUM_SCEN> DP2 = {DP2s1};
 
-  cci::LeadAllPar<NUM_SCEN> c1(1, "c1", vector<cci::FollPar<NUM_SCEN>>{c1F2},
+  cci::LeadAllPar<NUM_SCEN> c1(2, "c1", vector<cci::FollPar<NUM_SCEN>>{c1F1, c1F2},
                                Country1Par, DP1, array<double, NUM_SCEN>{1});
-  cci::LeadAllPar<NUM_SCEN> c2(1, "c2", vector<cci::FollPar<NUM_SCEN>>{c2F1},
+  cci::LeadAllPar<NUM_SCEN> c2(2, "c2", vector<cci::FollPar<NUM_SCEN>>{c2F1, c2F2},
                                Country2Par, DP2, array<double, NUM_SCEN>{1});
 
   cout << "\ncleanEnergy\n";
@@ -202,7 +202,7 @@ int main() {
   epec.addCountry(c1).addCountry(c2);
   epec.finalize();
   epec.setAlgorithm(Game::EPECalgorithm::innerApproximation);
-	epec.setPureNE(true);
+	// epec.setPureNE(true);
   // epec.setAlgorithm(Game::EPECalgorithm::fullEnumeration);
   cout << "Now finding Nash Equilibrium";
   std::string temp = R"(
@@ -220,6 +220,7 @@ int main() {
 
   // epec.setAggressiveness(1);
 	epec.setTimeLimit(1000);
+	epec.setAddPolyMethod(Game::EPECAddPolyMethod::reverse_sequential);
   epec.findNashEq();
   epec.writeSolution(1, "dat/Sol");
 
