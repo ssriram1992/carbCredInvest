@@ -54,6 +54,8 @@ clean:
 	rm -rf bin/*
 
 format:
+	@clang-format-9 -style=llvm -i src/meat/*.cpp
+	@clang-format-9 -style=llvm -i src/bones/*.h
 	@clang-format-9 -style=llvm -i src/*.cpp
 	@clang-format-9 -style=llvm -i src/*.h
 
@@ -61,7 +63,7 @@ edit:
 	vim -p src/main.cpp src/carbCredInv.cpp src/carbCredInv.h
 
 tag:
-	ctags src/*.cpp src/*.h
+	ctags src/*.cpp src/*.h src/meat/*.cpp src/bones/*.h
 	@echo "All tags done. Use Ctrl+] to follow a tag in vim and Ctrl+O to go back"
 
 install:
@@ -73,6 +75,6 @@ obj/carbCredInv.o: src/carbCredInv.h src/carbCredInv.cpp
 	$(GCC) -c src/carbCredInv.cpp $(OPTS) -o obj/carbCredInv.o
 
 
-obj/main.o: src/main.cpp
+obj/main.o: src/main.cpp src/carbCredInv.h 
 	$(GCC) -c src/main.cpp $(OPTS) -o obj/main.o
 
