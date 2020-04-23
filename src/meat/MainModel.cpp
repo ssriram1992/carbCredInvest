@@ -1,3 +1,5 @@
+#include "../carbCredInv.h"
+
 template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
 void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_obj_leader(
     const unsigned int
@@ -59,6 +61,17 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_obj_leader(
       this->getPosition(this->getNcountries() - 1, cci::LeaderVars::End) -
           nThisCountryvars) = -1;
 
+	// Q term for leader's income from selling carbon credits to followers 
+	const unsigned int carbPricePos = Loc.at(LeaderVars::CarbPrice) ;
+  for (unsigned int ff = 0; ff < Params.n_followers; ff++) {
+    const unsigned int ffCarbBuy = FollVarCount*ff + FollCarbBuy;
+    const unsigned int ffCarbSel = FollVarCount*ff + FollCarbSel;
+		QP_obj.Q.at(carbPricePos, ffCarbBuy) = 1;
+    QP_obj.Q.at(ffCarbBuy, carbPricePos) = 1;
+    QP_obj.Q.at(carbPricePos, ffCarbSel) = -1;
+    QP_obj.Q.at(ffCarbSel, carbPricePos) = -1;
+	}
+
 	// Social cost of carbon
 	QP_obj.c.at(Loc.at(LeaderVars::CarbExp)) = social_cost_of_carbon;
   QP_obj.c.at(Loc.at(LeaderVars::CarbImp)) = -social_cost_of_carbon;
@@ -75,6 +88,7 @@ cci::EPEC<n_Dirty, n_Clean, n_Scen> &
 cci::EPEC<n_Dirty, n_Clean, n_Scen>::addCountry(
     cci::LeadAllPar<n_Scen> Params) {
 
+  BOOST_LOG_TRIVIAL(trace) << "Inside cci::EPEC::addCountry:1";
   LeadLocs Loc;
   cci::init(Loc);
 
@@ -106,6 +120,7 @@ cci::EPEC<n_Dirty, n_Clean, n_Scen>::addCountry(
     else
       return 0u;
   }();
+  BOOST_LOG_TRIVIAL(trace) << "Inside cci::EPEC::addCountry:2";
 
   arma::sp_mat LeadCons(import_lim_cons +     // Import limit constraint
                             export_lim_cons + // Export limit constraint
@@ -115,7 +130,7 @@ cci::EPEC<n_Dirty, n_Clean, n_Scen>::addCountry(
                             1,                // Carbon credits >=0
                         Loc[cci::LeaderVars::End] - this->LL_MC_count);
   arma::vec LeadRHS(LeadCons.n_rows, arma::fill::zeros);
-
+BOOST_LOG_TRIVIAL(trace) << "Inside cci::EPEC::addCountry:4";
   std::vector<std::shared_ptr<Game::QP_Param>> FollowersVec{};
   // Create the QP_Param* for each follower
   try {
@@ -125,8 +140,10 @@ cci::EPEC<n_Dirty, n_Clean, n_Scen>::addCountry(
       FollowersVec.push_back(Foll);
     }
     // Make Leader Constraints
+    BOOST_LOG_TRIVIAL(trace) << "Inside cci::EPEC::addCountry:5";
     this->make_LL_LeadCons(LeadCons, LeadRHS, Params, Loc, import_lim_cons,
                            export_lim_cons);
+    BOOST_LOG_TRIVIAL(trace) << "Inside cci::EPEC::addCountry:6";
   } catch (const char *e) {
     cerr << e << '\n';
     throw;
@@ -143,7 +160,7 @@ cci::EPEC<n_Dirty, n_Clean, n_Scen>::addCountry(
          << e.what() << '\n';
     throw;
   }
-
+BOOST_LOG_TRIVIAL(trace) << "Inside cci::EPEC::addCountry:3";
   // Lower level Market clearing constraints - None
   arma::sp_mat MC(this->LL_MC_count,
                   LeadVars + FollVarCount * Params.n_followers);
@@ -193,7 +210,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
 
   arma::sp_mat Q(FollVarCount, FollVarCount);
   arma::sp_mat C(FollVarCount, otherVars);
-
+BOOST_LOG_TRIVIAL(trace) << "Inside cci::EPEC::make_LL_QP:4";
   // n_Dirty*n_Scen for dirty energy
   // infrastructural limits
   // n_Clean*n_Scen for clean energy
@@ -247,6 +264,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
       }
     }
   }
+  BOOST_LOG_TRIVIAL(trace) << "Inside cci::EPEC::make_LL_QP:5";
   // Clean energy Production cost and demand
   for (unsigned int ii = 0; ii < n_Clean; ii++) {
     for (unsigned int scen = 0; scen < n_Scen; ++scen) {
@@ -284,6 +302,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
       }
     }
   }
+  BOOST_LOG_TRIVIAL(trace) << "Inside cci::EPEC::make_LL_QP:6";
 
   // C - the crossterms
   // Carbon price by government times carbon purchased
@@ -313,19 +332,27 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
   }
 
   // OBJECTIVE Described
-
+BOOST_LOG_TRIVIAL(trace) << "Inside cci::EPEC::make_LL_QP:7";
   // CONSTRAINTS
   const auto &infCap = Follparam.capacities;
   const auto &renCapAdj = Follparam.renewCapAdjust;
   unsigned int constrCount{0};
   for (unsigned int scen = 0; scen < n_Scen; ++scen) {
+    BOOST_LOG_TRIVIAL(trace) << "Inside cci::EPEC::make_LL_QP:7: "<<scen;
     // Infrastructural limit
     for (unsigned int ii = 0; ii < n_Dirty; ++ii) {
+      BOOST_LOG_TRIVIAL(trace) << "Inside cci::EPEC::make_LL_QP:7: "<<scen<<" "<<dirtyEnergy.at(ii);
       B(constrCount, FollProdDirty + scen * n_Dirty + ii) = 1;
+      BOOST_LOG_TRIVIAL(trace) << "Inside cci::EPEC::make_LL_QP:7c";
+      for (const auto &dictkv:infCap)
+      {
+        BOOST_LOG_TRIVIAL(trace) <<" Dict val: "<<dictkv.first<<"---"<<dictkv.second;
+      }
       b(constrCount) = infCap.at(dirtyEnergy.at(ii));
       // Next constraint
       constrCount++;
     }
+    BOOST_LOG_TRIVIAL(trace) << "Inside cci::EPEC::make_LL_QP:7b: "<<scen;
     for (unsigned int ii = 0; ii < n_Clean; ++ii) {
       const auto energ = cleanEnergy.at(ii);
       B(constrCount, FollProdClean + scen * n_Clean + ii) = 1;
@@ -348,6 +375,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
   // CONSTRAINTS Described
 
   Foll->set(Q, C, A, B, c, b);
+  BOOST_LOG_TRIVIAL(trace) << "Inside cci::EPEC::make_LL_QP:end";
 }
 
 template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
