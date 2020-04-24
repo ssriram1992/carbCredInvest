@@ -1,4 +1,4 @@
-
+#pragma once
 /// @brief Stores the parameters of the follower in a country model
 template <unsigned int n_Scen> struct FollPar {
   /// For Eaxh prodType, linear and quadratic cost of production
@@ -47,16 +47,18 @@ struct LeadPar {
                              ///< square of domestic emissions
   double emissionCrossVal;   ///< Coefficient in the objective for  products of
                              ///< domestic emission and emission by others
+  double maxCarbPrice{100};
 
   LeadPar(double imp_lim = -1, double exp_lim = -1, double consum_limit = 0,
           double carbCred = 0, double emitVal = 0, double emitQuad = 0,
           double emitCross = 0, std::map<std::string, double> clInvVal = {},
-          std::map<std::string, double> clInvCros = {})
+          std::map<std::string, double> clInvCros = {},
+          double maxCarbPrice = 1000)
       : import_limit{imp_lim}, export_limit{exp_lim},
         consum_limit{consum_limit}, carbCreditInit{carbCred},
         cleanInvVal{clInvVal}, cleanInvCrossVal{clInvCros},
-        emissionVal{emitVal}, emissionValQuad{emitQuad}, emissionCrossVal{
-                                                             emitCross} {}
+        emissionVal{emitVal}, emissionValQuad{emitQuad},
+        emissionCrossVal{emitCross}, maxCarbPrice{maxCarbPrice} {}
 };
 
 /// @brief Stores the parameters of a country model
@@ -101,10 +103,11 @@ enum class LeaderVars {
   CarbExp,
   CarbImp,
   CarbPrice,
+  CarbBuy,
+  NonConv,
   TotInv,
   TotEmission,
   DualVar,
   ConvHullDummy,
   End
 };
-

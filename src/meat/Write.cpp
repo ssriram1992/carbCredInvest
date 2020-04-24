@@ -38,8 +38,8 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::writeSolution(
    * @p writeLevel is an integer representing the write configuration. 0: only
    * Json solution; 1: only human readable solution; 2:both
    */
-  // if (this->Stats.status == Game::EPECsolveStatus::nashEqFound) 
-	{
+  // if (this->Stats.status == Game::EPECsolveStatus::nashEqFound)
+  {
     if (writeLevel == 1 || writeLevel == 2) {
       this->WriteCountryMCprice(filename + ".txt", this->sol_x, false);
       for (unsigned int ell = 0; ell < this->getNcountries(); ++ell)
@@ -49,9 +49,8 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::writeSolution(
     if (writeLevel == 2 || writeLevel == 0)
       // this->writeSolutionJSON(filename, this->sol_x, this->sol_z);
       ;
-  } 
-   if (this->Stats.status != Game::EPECsolveStatus::nashEqFound) 
- 	{
+  }
+  if (this->Stats.status != Game::EPECsolveStatus::nashEqFound) {
     cerr << "Error in cci::EPEC<n_Dirty,n_Clean,n_Scen>::writeSolution:"
             "solution need not be a Nash equilibrium."
          << '\n';
@@ -67,7 +66,9 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountryMCprice(
   file << "**************************************************\n";
   file << "INTERNATIONAL PRICES\n";
   file << "**************************************************\n";
-  file << prn::label << "Carbon Price: " << prn::val << x.at(this->getPosition(this->getNcountries() - 1, LeaderVars::End))<<'\n';
+  file << prn::label << "Carbon Price: " << prn::val
+       << x.at(this->getPosition(this->getNcountries() - 1, LeaderVars::End))
+       << '\n';
 
   file << "**************************************************\n";
 
@@ -93,12 +94,20 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountry(
   double carbDomPrice = x.at(this->getPosition(i, cci::LeaderVars::CarbPrice));
   double carbImp = x.at(this->getPosition(i, cci::LeaderVars::CarbImp));
   double carbExp = x.at(this->getPosition(i, cci::LeaderVars::CarbExp));
+  const double carbBuy = x.at(this->getPosition(i, cci::LeaderVars::CarbBuy));
+  const double Nonconv = x.at(this->getPosition(i, cci::LeaderVars::NonConv));
   double carbInit = Params.LeaderParam.carbCreditInit;
 
   file << "Carbon credit details\n";
   file << prn::label << "Initial credit: " << prn::val << carbInit << "\n";
-  file << prn::label << "Net carbon Export: " << prn::val << carbExp - carbImp << "\n";
-  file << prn::label << "Domestic carbon price: " << prn::val << carbDomPrice << "\n";
+  file << prn::label << "Net carbon Export: " << prn::val << carbExp - carbImp
+       << "\n";
+  file << prn::label << "Domestic carbon price: " << prn::val << carbDomPrice
+       << "\n";
+  file << prn::label << "Net carbon purchase: " << prn::val << carbBuy << '\n';
+  file << prn::label << "Actual carbBuy x carbPrice: " << prn::val
+       << carbBuy * carbDomPrice << '\n';
+  file << prn::label << "Nonconvex McCormick: " << prn::val << Nonconv << '\n';
 
   // Follower productions
   file << "- - - - - - - - - - - - - - - - - - - - - - - - - \n";
@@ -122,7 +131,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountry(
                          "_" + std::to_string(scen));
     file << prn::label << " Net production: " << prn::val << prod << "\n";
     double price = Params.DemandParam.at(scen).first -
-                   Params.DemandParam.at(scen).second* prod;
+                   Params.DemandParam.at(scen).second * prod;
     file << prn::label << " Domestic energy price: " << prn::val << price
          << "\n";
     Prod += (prod * prob);
@@ -159,10 +168,10 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteFollower(
 
   const unsigned int foll_loc{this->getPosition(i, LeaderVars::Followers) +
                               j * FollVarCount};
-  file << prn::label << "CarbCred purchased: " << prn::val
-       << x.at(foll_loc + FollCarbBuy) << '\n';
-  file << prn::label << "CarbCred sold: " << prn::val
-       << x.at(foll_loc + FollCarbSel) << '\n';
+  // file << prn::label << "CarbCred purchased: " << prn::val
+  // << x.at(foll_loc + FollCarbBuy) << '\n';
+  // file << prn::label << "CarbCred sold: " << prn::val
+  // << x.at(foll_loc + FollCarbSel) << '\n';
   double carbNet = x.at(foll_loc + FollCarbBuy) - x.at(foll_loc + FollCarbSel);
   file << prn::label << (carbNet > 0 ? "Net purchased: " : "Net sold: ")
        << prn::val << std::abs(carbNet) << '\n';
@@ -222,7 +231,6 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteFollower(
 
   file.close();
 }
-
 
 template <unsigned int n_Scen>
 std::ostream &cci::operator<<(std::ostream &ost,

@@ -57,4 +57,3 @@ cci::EPEC<n_Dirty, n_Clean, n_Scen>::Respond(const std::string name,
   return this->Game::EPEC::Respond(this->name2nos.at(name), x);
 }
 //
-

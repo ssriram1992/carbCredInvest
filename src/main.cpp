@@ -69,12 +69,10 @@ int main() {
     return e;
   }(dirtyEnergy, cleanEnergy);
 
-  map<string, double> s1 = {
-    // {string("wind"), 0.7}, 
-    {string("solar"), 0.4}};
-  map<string, double> s2 = {
-    // {string("wind"), 0.8}, 
-    {string("solar"), 0.3}};
+  map<string, double> s1 = {// {string("wind"), 0.7},
+                            {string("solar"), 0.4}};
+  map<string, double> s2 = {// {string("wind"), 0.8},
+                            {string("solar"), 0.3}};
   const array<map<string, double>, NUM_SCEN> capFac1 = {s1};
 
   // s1["wind"] = 0.65;
@@ -99,56 +97,50 @@ int main() {
   // prodCost["coal"] = {12, 0.1};
   // emitCost["coal"] = 2;
   emitCost["gas"] = 1;
-  prodCost["gas"] = {3, 0.5};
+  prodCost["gas"] = {6, 1.5};
   // invCost["wind"] = {10, 0};
   invCost["solar"] = {25, 4};
 
   // Country 1, first Follower
-  cci::FollPar<NUM_SCEN> c1F1(15, string("c1F1"));
+  cci::FollPar<NUM_SCEN> c1F1(150, string("c1F1"));
   c1F1.name = string{"c1F1"};
   c1F1.productionCosts = prodCost;
   c1F1.investmentCosts = invCost;
   c1F1.emissionCosts = emitCost;
   c1F1.renewCapAdjust = capFac1;
-  c1F1.capacities =
-      makeMap<string, double>(energy, vector<double>{
-        // 5, 
-        300, 
-        // 1, 
-        0});
+  c1F1.capacities = makeMap<string, double>(energy, vector<double>{// 5,
+                                                                   300,
+                                                                   // 1,
+                                                                   0});
 
   // Country 1, second follower
-  cci::FollPar<NUM_SCEN> c1F2(10, string("c1F2"));
+  cci::FollPar<NUM_SCEN> c1F2(1000, string("c1F2"));
   c1F2.name = string{"c1F2"};
   c1F2.productionCosts = prodCost;
   c1F2.investmentCosts = invCost;
   c1F2.emissionCosts = emitCost;
   c1F2.renewCapAdjust = capFac1;
-  c1F2.capacities =
-      makeMap<string, double>(energy, vector<double>{
-        // 5, 
-        300, 
-        // 4, 
-        0});
+  c1F2.capacities = makeMap<string, double>(energy, vector<double>{// 5,
+                                                                   300,
+                                                                   // 4,
+                                                                   0});
 
   // Country 2, first Follower
-  cci::FollPar<NUM_SCEN> c2F1(15, string("c2F1"));
+  cci::FollPar<NUM_SCEN> c2F1(100, string("c2F1"));
   c2F1.name = string{"c2F1"};
   c2F1.productionCosts = prodCost;
   c2F1.investmentCosts = invCost;
   c2F1.emissionCosts = emitCost;
   c2F1.renewCapAdjust = capFac2;
-  c2F1.capacities =
-      makeMap<string, double>(energy, vector<double>{
-        // 4, 
-        300, 
-        // 5, 
-        0});
+  c2F1.capacities = makeMap<string, double>(energy, vector<double>{// 4,
+                                                                   300,
+                                                                   // 5,
+                                                                   0});
   // c2F1.investmentCosts["wind"].first = 1;
   c2F1.investmentCosts["solar"].first = 1;
 
   // Country 2, second follower
-  cci::FollPar<NUM_SCEN> c2F2(10, string("c2F2"));
+  cci::FollPar<NUM_SCEN> c2F2(75, string("c2F2"));
   c2F2.name = string{"c2F2"};
   c2F2.productionCosts = prodCost;
   c2F2.investmentCosts = invCost;
@@ -156,38 +148,35 @@ int main() {
   c2F2.renewCapAdjust = capFac2;
   // c2F2.investmentCosts["wind"].first = 8;
   c2F2.investmentCosts["solar"].first = 3;
-  c2F2.capacities =
-      makeMap<string, double>(energy, vector<double>{
-        // 2, 
-        300, 
-        // 10, 
-        0});
+  c2F2.capacities = makeMap<string, double>(energy, vector<double>{// 2,
+                                                                   300,
+                                                                   // 10,
+                                                                   0});
 
   // Country 1 Leader Par
   cci::LeadPar Country1Par(-1, // Import limit
                            -1, // Export limit
                            70, // Min reqd consum
-                           0, // Carbon credit
-                           10, // emitVals
-                           1, 2, makeMap(cleanEnergy, vector<double>{
-                            // 100 ,
-                            50
-                          }),
-                           makeMap(cleanEnergy, vector<double>{
-                            // 0, 
-                            0}));
+                           0,  // Carbon credit
+                           100, // emitVals
+                           5, 10,
+                           makeMap(cleanEnergy,
+                                   vector<double>{// 100 ,
+                                                  50}),
+                           makeMap(cleanEnergy, vector<double>{// 0,
+                                                               0}));
 
   cci::LeadPar Country2Par(-1, // Import limit
                            -1, // Export limit
                            73, // Min reqd consum
-                           0, // Carbon credit
+                           0,  // Carbon credit
                            10, // emitVals
-                           1, 2, makeMap(cleanEnergy, vector<double>{
-                            // 50, 
-                            100}),
-                           makeMap(cleanEnergy, vector<double>{
-                            // 0, 
-                            0}));
+                           1, 2,
+                           makeMap(cleanEnergy,
+                                   vector<double>{// 50,
+                                                  100}),
+                           makeMap(cleanEnergy, vector<double>{// 0,
+                                                               0}));
 
   linQuad DP1s1 = {1000, 1};
   // linQuad DP1s2 = {1200, 0.95};
@@ -196,9 +185,11 @@ int main() {
   array<linQuad, NUM_SCEN> DP1 = {DP1s1};
   array<linQuad, NUM_SCEN> DP2 = {DP2s1};
 
-  cci::LeadAllPar<NUM_SCEN> c1(2, "c1", vector<cci::FollPar<NUM_SCEN>>{c1F1, c1F2},
+  cci::LeadAllPar<NUM_SCEN> c1(2, "c1",
+                               vector<cci::FollPar<NUM_SCEN>>{c1F1, c1F2},
                                Country1Par, DP1, array<double, NUM_SCEN>{1});
-  cci::LeadAllPar<NUM_SCEN> c2(2, "c2", vector<cci::FollPar<NUM_SCEN>>{c2F1, c2F2},
+  cci::LeadAllPar<NUM_SCEN> c2(2, "c2",
+                               vector<cci::FollPar<NUM_SCEN>>{c2F1, c2F2},
                                Country2Par, DP2, array<double, NUM_SCEN>{1});
 
   cout << "\ncleanEnergy\n";
@@ -234,7 +225,7 @@ int main() {
     epec.finalize();
     epec.setAlgorithm(Game::EPECalgorithm::innerApproximation);
     epec.setPureNE(true);
-		epec.setNumThreads(2);
+    epec.setNumThreads(2);
     // epec.setAlgorithm(Game::EPECalgorithm::fullEnumeration);
     cout << "Now finding Nash Equilibrium";
     std::string temp = R"(
@@ -248,8 +239,8 @@ int main() {
 
 			)";
     cout << temp;
-    // boost::log::core::get()->set_filter(boost::log::trivial::severity >=
-    //                                     boost::log::trivial::debug);
+    boost::log::core::get()->set_filter(boost::log::trivial::severity >=
+                                        boost::log::trivial::debug);
 
     // epec.setAggressiveness(1);
     epec.setTimeLimit(1000);
@@ -260,7 +251,7 @@ int main() {
     cerr << s << "\nOops\n";
     throw;
   }
-	cout << R"( 
+  cout << R"( 
 ######
 #     #   ####   #    #  ######
 #     #  #    #  ##   #  #

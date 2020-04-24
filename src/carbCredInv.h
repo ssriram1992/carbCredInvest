@@ -210,10 +210,9 @@ cci::FollPar<n_Scen> operator+(const cci::FollPar<n_Scen> &F1,
 
 */
 
-#include "meat/MainModel.cpp"
 #include "meat/Helpers.cpp"
+#include "meat/MainModel.cpp"
 #include "meat/Write.cpp"
-
 
 template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
 bool cci::EPEC<n_Dirty, n_Clean, n_Scen>::ParamValid(
@@ -226,7 +225,6 @@ bool cci::EPEC<n_Dirty, n_Clean, n_Scen>::ParamValid(
   std::cout << Params.name << " parameters not checked! Warning!!!\n";
   return true;
 }
-
 
 template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
 void cci::EPEC<n_Dirty, n_Clean, n_Scen>::initializeSoln(
