@@ -1,3 +1,4 @@
+#include "../carbCredInv.h"
 
 template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
 void cci::EPEC<n_Dirty, n_Clean, n_Scen>::write(const std::string filename,
@@ -37,7 +38,8 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::writeSolution(
    * @p writeLevel is an integer representing the write configuration. 0: only
    * Json solution; 1: only human readable solution; 2:both
    */
-  if (this->Stats.status == Game::EPECsolveStatus::nashEqFound) {
+  // if (this->Stats.status == Game::EPECsolveStatus::nashEqFound) 
+	{
     if (writeLevel == 1 || writeLevel == 2) {
       this->WriteCountryMCprice(filename + ".txt", this->sol_x, false);
       for (unsigned int ell = 0; ell < this->getNcountries(); ++ell)
@@ -47,9 +49,11 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::writeSolution(
     if (writeLevel == 2 || writeLevel == 0)
       // this->writeSolutionJSON(filename, this->sol_x, this->sol_z);
       ;
-  } else {
-    cerr << "Error in cci::EPEC<n_Dirty,n_Clean,n_Scen>::writeSolution: no "
-            "solution to write."
+  } 
+   if (this->Stats.status != Game::EPECsolveStatus::nashEqFound) 
+ 	{
+    cerr << "Error in cci::EPEC<n_Dirty,n_Clean,n_Scen>::writeSolution:"
+            "solution need not be a Nash equilibrium."
          << '\n';
   }
 }

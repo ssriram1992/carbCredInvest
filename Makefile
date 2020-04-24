@@ -78,5 +78,5 @@ obj/carbCredInv.o: src/carbCredInv.h src/carbCredInv.cpp
 obj/main.o: src/main.cpp src/carbCredInv.h 
 	$(GCC) -c src/main.cpp $(OPTS) -o obj/main.o
 
-src/carbCredInv.h: src/meat/Write.cpp src/meat/Helpers.cpp src/bones/dataLoad.h src/bones/dataLoad.h
+src/carbCredInv.h: src/meat/Write.cpp src/meat/Helpers.cpp src/bones/dataLoad.h src/bones/helpers.h
 	@echo "Complete recompilation"
