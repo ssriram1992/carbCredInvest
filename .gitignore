@@ -18,3 +18,11 @@ obj/
 tags
 ycmBad.py
 ycmGood.py
+*.lp
+*.mps
+*.prm
+*.sol
+*.csv
+./python/.*
+python/__pycache__/*
+python/.*/*
