@@ -248,7 +248,7 @@ class EPECModel:
         if ss not in self.data.scenario:
             raise KeyError("Scenario "+str(ss)+" invalid!")
             return
-        print("Scenario: ", ss, end = ' ')
+        print("Scenario: ", ss, end=' ')
         if hasattr(self.data, "probability"):
                 print("with probability",self.data.probability[ss])
         else:
@@ -548,6 +548,7 @@ def  makeMPEC(data):
     activeCountry = {cc:1 for cc in data.countries}
     M.setObjective(quicksum(activeCountry[cc]*COUNTRY_OBJ[cc] for cc in data.countries))
     
+    M.Params.LogToConsole = 0
     M.Params.NonConvex=2
     M.Params.Presolve = 2
     M.Params.CutPasses = 1
@@ -581,13 +582,19 @@ def readInputFromFile(filename, delim = ','):
             mylist = mylist+[numlines]
     return mylist
 
-def solveMPECs(mylist, timeLimitPerJob = 60):
+def solveMPECs(sets, mylist, timeLimitPerJob = 60):
     """
     Given a list of lists, solve the MPEC for each list.
     """
     solution = []
     count = 0
     length = len(mylist)
+    dirty = sets.dirty
+    green = sets.green
+    countries = sets.countries
+    producers = sets.producers
+    domesticity = sets.domesticity
+    scenario = sets.scenario
     for inp in mylist:
         count = count+1
         print("Processing",count,"out of", length)
@@ -595,12 +602,16 @@ def solveMPECs(mylist, timeLimitPerJob = 60):
         data.buildFromList(inp)
         MPEC = makeMPEC(data)
         MPEC.Model.Params.TimeLimit = timeLimitPerJob 
+        MPEC.Model.Params.Threads = 4
         MPEC.Model.optimize()
         eqn = MPEC.Model.getObjective()
         MPEC.Model.addConstr(eqn <= MPEC.Model.ObjVal, name = "equatingObjective")
-        MPEC.Model.setObjective(quicksum(
-                    MPEC.CARB_IMP[cc]*MPEC.CARB_IMP[cc]*1e-3 for cc in MPEC.data.countries
-                ))
+        MPEC.Model.setObjective(
+					(MPEC.CARBON_PRICE['c1'] - MPEC.CARBON_PRICE['c2'])*(MPEC.CARBON_PRICE['c1'] - MPEC.CARBON_PRICE['c2'])
+					)
+        # MPEC.Model.setObjective(quicksum(
+                    # MPEC.CARB_IMP[cc]*MPEC.CARB_IMP[cc]*1e-3 for cc in MPEC.data.countries
+                # ))
         MPEC.Model.optimize()
         ans = MPEC.listify()
         solution.append(ans)
