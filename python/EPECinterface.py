@@ -36,6 +36,13 @@ class inputData:
         self.producers = producers
         self.domesticity = domesticity
         self.scenario = scenario
+    def __repr__(self):
+        d = self.__dict__
+        ans = "INSTANCE OF EPECinterface.inputData\n"
+        ans += "***********************************\n\n"
+        for kk in d:
+            ans += str(kk) + " ---------- " + str(d[kk]) + "\n\n"
+        return ans
     def listify(self):
         """
         Creates a list in the canonical order of 
