@@ -435,8 +435,8 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_LeadCons(
     }
     LeadCons(constrCount, Loc.at(LeaderVars::TotInv) + ii) = -1;
     LeadCons(constrCount + 1, Loc.at(LeaderVars::TotInv) + ii) = 1;
+    constrCount += 2;
   }
-  constrCount += 2;
   // Expected Emission summing
   for (unsigned int scen = 0; scen < n_Scen; ++scen) {
     const auto probab =
@@ -457,7 +457,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_LeadCons(
       for (unsigned int ii = 0; ii < n_Clean; ++ii) {
         const auto &pt = cleanEnergy.at(ii); // player type
         const auto emitCost = Params.FollowerParam.at(ff).emissionCosts.at(pt);
-        LeadCons(constrCount + 1, FollVarCount * ff + FollProdClean +
+        LeadCons(constrCount, FollVarCount * ff + FollProdClean +
                                       n_Clean * scen + ii) = probab * emitCost;
         LeadCons(constrCount + 1,
                  FollVarCount * ff + FollProdClean + n_Clean * scen + ii) =
