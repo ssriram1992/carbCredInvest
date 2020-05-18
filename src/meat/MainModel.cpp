@@ -30,12 +30,15 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_obj_leader(
         -1 * Params.LeaderParam.cleanInvVal.at(cleanEnergy.at(ii));
     // Negative sign because investment has to be maximized
   }
+  
+
   // Total investment cross terms
   for (unsigned int ii = 0; ii < n_Clean; ++ii) {
     for (unsigned int cc = 0; cc < this->getNcountries(); ++cc) {
+      if (cc == i)
+        continue;
       QP_obj.C(Loc.at(LeaderVars::TotInv) + ii,
-               this->getPosition(this->getNcountries() - 1,
-                                 cci::LeaderVars::TotInv + ii) -
+               this->getPosition(cc, cci::LeaderVars::TotInv) + ii -
                    nThisCountryvars) =
           Params.LeaderParam.cleanInvCrossVal.at(cleanEnergy.at(ii));
     }
@@ -47,44 +50,41 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_obj_leader(
   QP_obj.c(Loc.at(LeaderVars::TotEmission)) = Params.LeaderParam.emissionVal;
   // Emission cross terms
   for (unsigned int cc = 0; cc < this->getNcountries(); ++cc) {
+    if (cc == i)
+      continue;
     QP_obj.C(Loc.at(LeaderVars::TotEmission),
-             this->getPosition(this->getNcountries() - 1,
-                               cci::LeaderVars::TotEmission) -
+             this->getPosition(cc, cci::LeaderVars::TotEmission) -
                  nThisCountryvars) = Params.LeaderParam.emissionCrossVal;
   }
 
+  // Production value
+  for (unsigned int ff = 0; ff < Params.n_followers; ++ff) {
+    for (unsigned int scen = 0; scen < n_Scen; ++scen) {
+      const auto probab =
+          Params.scenProb.at(scen); // Probability of the current scenario
+      for (unsigned int ii = 0; ii < n_Dirty; ++ii)
+        QP_obj.c(FollVarCount * ff + FollProdDirty + n_Dirty * scen + ii) +=
+            -1 * probab * Params.LeaderParam.prodnVal;
+      for (unsigned int ii = 0; ii < n_Clean; ++ii)
+        QP_obj.c(FollVarCount * ff + FollProdClean + n_Clean * scen + ii) +=
+            -1 * probab * Params.LeaderParam.prodnVal;
+    }
+  }
+
   // Carbon credit trade term
-  QP_obj.C.at(
-      Loc.at(LeaderVars::CarbExp),
-      this->getPosition(this->getNcountries() - 1, cci::LeaderVars::End) -
-          nThisCountryvars) = 1;
-  QP_obj.C.at(
-      Loc.at(LeaderVars::CarbImp),
-      this->getPosition(this->getNcountries() - 1, cci::LeaderVars::End) -
-          nThisCountryvars) = -1;
-
-  // Q term for leader's income from selling carbon credits to followers
-  // const unsigned int carbPricePos = Loc.at(LeaderVars::CarbPrice);
-  // for (unsigned int ff = 0; ff < Params.n_followers; ff++) {
-  //   const unsigned int ffCarbBuy = FollVarCount * ff + FollCarbBuy;
-  //   const unsigned int ffCarbSel = FollVarCount * ff + FollCarbSel;
-  //   QP_obj.Q.at(carbPricePos, ffCarbBuy) = 1;
-  //   QP_obj.Q.at(ffCarbBuy, carbPricePos) = 1;
-  //   QP_obj.Q.at(carbPricePos, ffCarbSel) = -1;
-  //   QP_obj.Q.at(ffCarbSel, carbPricePos) = -1;
-  // }
-
-  // Nonconvex term
-  QP_obj.c.at(Loc.at(cci::LeaderVars::NonConv)) = 1;
-
-  // // Social cost of carbon
-  // QP_obj.c.at(Loc.at(LeaderVars::CarbExp)) = social_cost_of_carbon;
-  // QP_obj.c.at(Loc.at(LeaderVars::CarbImp)) = -social_cost_of_carbon;
-
-  // for (unsigned int ff = 0; ff < Params.n_followers; ff++) {
-  //   QP_obj.c.at(FollVarCount * ff + FollCarbBuy) = social_cost_of_carbon;
-  //   QP_obj.c.at(FollVarCount * ff + FollCarbSel) = -social_cost_of_carbon;
-  // }
+  for (unsigned int ff = 0; ff < Params.n_followers; ++ff) {
+    QP_obj.c(FollVarCount * ff + FollCarbBuy) = Params.LeaderParam.taxCarbon;
+  }
+  QP_obj.c(Loc.at(LeaderVars::CarbImp)) = this->comDat.suppInt;
+  QP_obj.Q(Loc.at(LeaderVars::CarbImp), Loc.at(LeaderVars::CarbImp)) =
+      this->comDat.suppSlope;
+  for (unsigned int cc = 0; cc < this->getNcountries(); ++cc) {
+    if (cc == i)
+      continue;
+    QP_obj.C(Loc.at(LeaderVars::CarbImp),
+             this->getPosition(cc, cci::LeaderVars::CarbImp) -
+                 nThisCountryvars) = this->comDat.suppInt;
+  }
 }
 
 template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
@@ -99,43 +99,20 @@ cci::EPEC<n_Dirty, n_Clean, n_Scen>::addCountry(
   // For follower's carbon purchase from government.
   cci::increaseVal(Loc, LeaderVars::Followers,
                    Params.n_followers * this->FollVarCount);
-  cci::increaseVal(Loc, LeaderVars::CarbExp, 1);
   cci::increaseVal(Loc, LeaderVars::CarbImp, 1);
-  cci::increaseVal(Loc, LeaderVars::CarbPrice, 1);
-  cci::increaseVal(Loc, LeaderVars::CarbBuy, 1);
-  cci::increaseVal(Loc, LeaderVars::NonConv, 1);
   cci::increaseVal(Loc, LeaderVars::TotInv, n_Clean);
   cci::increaseVal(Loc, LeaderVars::TotEmission, 1);
 
   const unsigned int LeadVars =
       Loc.at(cci::LeaderVars::End) - this->FollVarCount * Params.n_followers;
-  // Should be 6+n_Clean - one for CarbExp, one for CarbImp, one for CarbPrice,
-  // one for CarbBuy, one for NonConv and n_Clean each for TotInv and
+  // Should be 3+n_Clean - one for CarbImp,
+  // one for CarbSell and n_Clean each for TotInv and
   // TotEmission
 
   // Leader Constraints
-  const short int import_lim_cons = [&Params]() {
-    if (Params.LeaderParam.import_limit >= 0)
-      return 1u;
-    else
-      return 0u;
-  }();
-  const short int export_lim_cons = [&Params]() {
-    if (Params.LeaderParam.export_limit >= 0)
-      return 1u;
-    else
-      return 0u;
-  }();
-
-  arma::sp_mat LeadCons(import_lim_cons +     // Import limit constraint
-                            export_lim_cons + // Export limit constraint
-                            n_Scen +          // Min consumption
-                            2 * n_Clean +     // Investment summing
-                            2 +               // Emission summing
-                            2 +               // CarbBuy summing
-                            1 +               // CarbPrice Up Bnd
-                            1 +               // McCormick
-                            1,                // Carbon credits >=0
+  arma::sp_mat LeadCons(n_Clean + // Investment summing
+                            1 +   // Emission summing
+                            1,    // Carbon credits >=0
                         Loc[cci::LeaderVars::End] - this->LL_MC_count);
   arma::vec LeadRHS(LeadCons.n_rows, arma::fill::zeros);
   std::vector<std::shared_ptr<Game::QP_Param>> FollowersVec{};
@@ -147,8 +124,7 @@ cci::EPEC<n_Dirty, n_Clean, n_Scen>::addCountry(
       FollowersVec.push_back(Foll);
     }
     // Make Leader Constraints
-    this->make_LL_LeadCons(LeadCons, LeadRHS, Params, Loc, import_lim_cons,
-                           export_lim_cons);
+    this->make_LL_LeadCons(LeadCons, LeadRHS, Params, Loc);
   } catch (const char *e) {
     cerr << e << '\n';
     throw;
@@ -188,7 +164,7 @@ cci::EPEC<n_Dirty, n_Clean, n_Scen>::addCountry(
 
   this->LeadConses.push_back(N->RewriteLeadCons()); // Not mandatory!
   this->AllLeadPars.push_back(Params);
-  this->Game::EPEC::n_MCVar = 1;
+  this->Game::EPEC::n_MCVar = 0;
   return *this;
 }
 
@@ -305,10 +281,10 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
     }
   }
 
-  // C - the crossterms
-  // Carbon price by government times carbon purchased
-  C(FollCarbBuy, Loc.at(LeaderVars::CarbPrice) - FollVarCount) = 1;
-  C(FollCarbSel, Loc.at(LeaderVars::CarbPrice) - FollVarCount) = -1;
+  // c - the crossterms
+  // Carbon tax by government times carbon purchased
+  c(FollCarbBuy) = Params.LeaderParam.taxCarbon;
+
   // C - the crossterms
   for (unsigned int scen = 0; scen < n_Scen; scen++) {
     for (unsigned int ii = 0; ii < n_Clean + n_Dirty; ii++) {
@@ -360,7 +336,6 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
     }
     // Carbon credits limit Constraint
     B(constrCount, FollCarbBuy) = -1;
-    B(constrCount, FollCarbSel) = +1;
     for (unsigned int ii = 0; ii < n_Dirty; ++ii)
       B(constrCount, FollProdDirty + scen * n_Dirty + ii) =
           Follparam.emissionCosts.at(dirtyEnergy.at(ii));
@@ -380,13 +355,8 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_LeadCons(
     arma::sp_mat
         &LeadCons,      ///< The LHS matrix of leader constraints (for output)
     arma::vec &LeadRHS, ///< RHS vector for leader constraints (for output)
-    const LeadAllPar<n_Scen> &Params,   ///< All country specific parameters
-    const cci::LeadLocs &Loc,           ///< Location of variables
-    const unsigned int import_lim_cons, ///< Does a constraint on import limit
-                                        ///< exist or no limit?
-    const unsigned int export_lim_cons  ///< Does a constraint on export limit
-                                        ///< exist or no limit?
-) const noexcept
+    const LeadAllPar<n_Scen> &Params, ///< All country specific parameters
+    const cci::LeadLocs &Loc) const noexcept
 /**
  * Makes the leader level constraints for a country.
  */
@@ -395,48 +365,15 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_LeadCons(
   LeadCons.zeros();
   LeadRHS.zeros();
   unsigned int constrCount{0};
-  // Import limit constraints
-  if (import_lim_cons) {
-    LeadCons(constrCount, Loc.at(LeaderVars::CarbExp)) = -1;
-    LeadCons(constrCount, Loc.at(LeaderVars::CarbImp)) = 1;
-    LeadRHS(constrCount) = Params.LeaderParam.import_limit;
-    constrCount++;
-  }
-  // export limit constraints
-  if (export_lim_cons) {
-    LeadCons(constrCount, Loc.at(LeaderVars::CarbExp)) = 1;
-    LeadCons(constrCount, Loc.at(LeaderVars::CarbImp)) = -1;
-    LeadRHS(constrCount) = Params.LeaderParam.export_limit;
-    constrCount++;
-  }
-  // Scenario constraints
-  for (unsigned int scen = 0; scen < n_Scen; scen++) {
-    // Minimum Consumption  constraint
-    // Each producer production
-    for (unsigned int ff = 0; ff < Params.n_followers; ff++) {
-      // Each producer's dirty production
-      for (unsigned int ii = 0; ii < n_Dirty; ++ii)
-        LeadCons(constrCount,
-                 FollVarCount * ff + FollProdDirty + scen * n_Dirty + ii) = -1;
-      // Each producer's clean production
-      for (unsigned int ii = 0; ii < n_Clean; ++ii)
-        LeadCons(constrCount,
-                 FollVarCount * ff + FollProdClean + scen * n_Clean + ii) = -1;
-    }
-    LeadRHS(constrCount) = -std::max(0.0, Params.LeaderParam.consum_limit);
-    constrCount++;
-  }
   // Investment summing
-
   for (unsigned int ii = 0; ii < n_Clean; ++ii) {
     for (unsigned int ff = 0; ff < Params.n_followers; ++ff) {
-      LeadCons(constrCount, FollVarCount * ff + FollInv + ii) = 1;
-      LeadCons(constrCount + 1, FollVarCount * ff + FollInv + ii) = -1;
+      LeadCons(constrCount, FollVarCount * ff + FollInv + ii) = -1;
     }
-    LeadCons(constrCount, Loc.at(LeaderVars::TotInv) + ii) = -1;
-    LeadCons(constrCount + 1, Loc.at(LeaderVars::TotInv) + ii) = 1;
+    LeadCons(constrCount, Loc.at(LeaderVars::TotInv) + ii) = 1;
+    constrCount += 1;
   }
-  constrCount += 2;
+
   // Expected Emission summing
   for (unsigned int scen = 0; scen < n_Scen; ++scen) {
     const auto probab =
@@ -449,65 +386,25 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_LeadCons(
         const auto emitCost = Params.FollowerParam.at(ff).emissionCosts.at(pt);
         LeadCons(constrCount, FollVarCount * ff + FollProdDirty +
                                   n_Dirty * scen + ii) = probab * emitCost;
-        LeadCons(constrCount + 1,
-                 FollVarCount * ff + FollProdDirty + n_Dirty * scen + ii) =
-            -1 * probab * emitCost;
       }
       // Clean Producers
       for (unsigned int ii = 0; ii < n_Clean; ++ii) {
         const auto &pt = cleanEnergy.at(ii); // player type
         const auto emitCost = Params.FollowerParam.at(ff).emissionCosts.at(pt);
-        LeadCons(constrCount + 1, FollVarCount * ff + FollProdClean +
-                                      n_Clean * scen + ii) = probab * emitCost;
-        LeadCons(constrCount + 1,
-                 FollVarCount * ff + FollProdClean + n_Clean * scen + ii) =
-            -1 * probab * emitCost;
+        LeadCons(constrCount, FollVarCount * ff + FollProdClean +
+                                  n_Clean * scen + ii) = probab * emitCost;
       }
       LeadCons(constrCount, Loc.at(LeaderVars::TotEmission)) = -1;
-      LeadCons(constrCount + 1, Loc.at(LeaderVars::TotEmission)) = 1;
     }
   }
   constrCount += 2;
-  // Carbon credit positivity constraint
-  LeadCons(constrCount, Loc.at(LeaderVars::CarbExp)) = 1;
-  LeadCons(constrCount, Loc.at(LeaderVars::CarbImp)) = -1;
-  LeadCons(constrCount, Loc.at(LeaderVars::CarbBuy)) = -1;
-
-  LeadRHS(constrCount) = Params.LeaderParam.carbCreditInit;
-  constrCount++;
   // CarbBuy summing
-  LeadCons(constrCount, Loc.at(LeaderVars::CarbBuy)) = 1;
-  LeadCons(constrCount + 1, Loc.at(LeaderVars::CarbBuy)) = -1;
-  for (unsigned int ff = 0; ff < Params.n_followers; ff++) {
-    LeadCons(constrCount, FollVarCount * ff + FollCarbBuy) = -1;
-    LeadCons(constrCount, FollVarCount * ff + FollCarbSel) = 1;
+  // LeadCons(constrCount, Loc.at(LeaderVars::CarbBuy)) = 1;
+  LeadCons(constrCount + 1, Loc.at(LeaderVars::CarbImp)) = -1;
+  for (unsigned int ff = 0; ff < Params.n_followers; ff++)
     LeadCons(constrCount + 1, FollVarCount * ff + FollCarbBuy) = 1;
-    LeadCons(constrCount + 1, FollVarCount * ff + FollCarbSel) = -1;
-  }
-  LeadRHS(constrCount) = 0;
-  LeadRHS(constrCount + 1) = 0;
-  constrCount += 2;
-  // Upper bound for leader Carbon Price
-  LeadCons(constrCount, Loc.at(LeaderVars::CarbPrice)) = 1;
-  LeadRHS(constrCount) = Params.LeaderParam.maxCarbPrice;
-  // McCormick - NonConvex >= maxCarbPrice * CarbBuy + maxCarbBuy * carbPrice -
-  // maxCarbBuy*maxCarbPrice
-  const double maxCarbBuy = [&Params]() {
-    double ans;
-    for (unsigned int ff = 0; ff < Params.n_followers; ff++)
-      ans += Params.FollowerParam.at(ff).carbonCreditInit;
-    if (Params.LeaderParam.carbCreditInit)
-      BOOST_LOG_TRIVIAL(fatal)
-          << "Error in cci::EPEC::make_LL_LeadCons: Leader has non-zero "
-             "carbon-credits to start with!";
-    return ans;
-  }();
-  LeadCons(constrCount, Loc.at(LeaderVars::NonConv)) = -1;
-  LeadCons(constrCount, Loc.at(LeaderVars::CarbBuy)) =
-      Params.LeaderParam.maxCarbPrice;
-  LeadCons(constrCount, Loc.at(LeaderVars::CarbPrice)) = maxCarbBuy;
-  LeadRHS(constrCount) = maxCarbBuy * Params.LeaderParam.maxCarbPrice;
-  constrCount++;
+  LeadRHS(constrCount) = Params.LeaderParam.carbCreditInit;
+  constrCount += 1;
 }
 
 template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
@@ -523,13 +420,6 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_MC_cons(arma::sp_mat &MCLHS,
         "function can be "
         "run only AFTER calling finalize()");
   // Output matrices
-  MCRHS.zeros(1);
-  MCLHS.zeros(1, this->getnVarinEPEC());
-  if (this->getNcountries() > 1) {
-    for (unsigned int i = 0; i < this->getNcountries(); ++i) {
-      // The MC constraint for each leader country's carbon trade market
-      MCLHS(0, this->getPosition(i, LeaderVars::CarbExp)) = 1;
-      MCLHS(0, this->getPosition(i, LeaderVars::CarbImp)) = -1;
-    }
-  }
+  MCRHS.zeros(0);
+  MCLHS.zeros(0, this->getnVarinEPEC());
 }

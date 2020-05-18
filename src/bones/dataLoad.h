@@ -1,4 +1,11 @@
 #pragma once
+
+struct commonData {
+  double suppInt{100};
+  double suppSlope{1};
+  commonData(double sI, double sS) : suppInt{sI}, suppSlope{sS} {}
+};
+
 /// @brief Stores the parameters of the follower in a country model
 template <unsigned int n_Scen> struct FollPar {
   /// For Eaxh prodType, linear and quadratic cost of production
@@ -22,13 +29,9 @@ template <unsigned int n_Scen> struct FollPar {
 
 /// @brief Stores the parameters of the leader in a country model
 struct LeadPar {
-  double import_limit = -1; ///< Maximum net import in the country. If no limit,
-                            ///< set the value as -1;
-  double export_limit = -1; ///< Maximum net export in the country. If no limit,
-                            ///< set the value as -1;
   double consum_limit =
       0; ///< Government does not want the price to exceed this limit
-  double carbCreditInit = 100;
+  double carbCreditInit = 0;
 
   // Investment terms in the objective
   std::map<std::string, double>
@@ -47,18 +50,19 @@ struct LeadPar {
                              ///< square of domestic emissions
   double emissionCrossVal;   ///< Coefficient in the objective for  products of
                              ///< domestic emission and emission by others
-  double maxCarbPrice{100};
+  double prodnVal{100};
 
-  LeadPar(double imp_lim = -1, double exp_lim = -1, double consum_limit = 0,
-          double carbCred = 0, double emitVal = 0, double emitQuad = 0,
-          double emitCross = 0, std::map<std::string, double> clInvVal = {},
-          std::map<std::string, double> clInvCros = {},
-          double maxCarbPrice = 1000)
-      : import_limit{imp_lim}, export_limit{exp_lim},
-        consum_limit{consum_limit}, carbCreditInit{carbCred},
+  double taxCarbon = 0;
+
+  LeadPar(double consum_limit = 0, double carbCred = 0, double emitVal = 0,
+          double emitQuad = 0, double emitCross = 0,
+          std::map<std::string, double> clInvVal = {},
+          std::map<std::string, double> clInvCros = {}, double prodnVal = 100,
+          double taxCarbon = 0)
+      : consum_limit{consum_limit}, carbCreditInit{carbCred},
         cleanInvVal{clInvVal}, cleanInvCrossVal{clInvCros},
         emissionVal{emitVal}, emissionValQuad{emitQuad},
-        emissionCrossVal{emitCross}, maxCarbPrice{maxCarbPrice} {}
+        emissionCrossVal{emitCross}, prodnVal{prodnVal}, taxCarbon{taxCarbon} {}
 };
 
 /// @brief Stores the parameters of a country model
@@ -100,11 +104,7 @@ struct EPECInstance {
 
 enum class LeaderVars {
   Followers,
-  CarbExp,
   CarbImp,
-  CarbPrice,
-  CarbBuy,
-  NonConv,
   TotInv,
   TotEmission,
   DualVar,

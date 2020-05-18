@@ -38,6 +38,10 @@ bin/carbCredInv_PNE: obj/carbCredInv.o obj/main.o
 	@echo Linking...
 	$(GCC) $(FILEEPEC) obj/main.o obj/carbCredInv.o  $(OPTS) $(LINKOPTS) -o bin/carbCredInv_PNE
 
+compile: obj/carbCredInv.o obj/main.o
+	@echo Linking
+	$(GCC) $(FILEEPEC) obj/main.o obj/carbCredInv.o  $(OPTS) $(LINKOPTS) -o bin/carbCredInv_PNE
+	@banner Compiled
 
 EPECtest: test/EPEC
 	test/EPEC

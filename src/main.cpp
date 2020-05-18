@@ -152,31 +152,35 @@ int main() {
                                                                    300,
                                                                    // 10,
                                                                    0});
-
+  
   // Country 1 Leader Par
-  cci::LeadPar Country1Par(-1, // Import limit
-                           -1, // Export limit
-                           70, // Min reqd consum
-                           0,  // Carbon credit
+  cci::LeadPar Country1Par(70,  // Min reqd consum
+                           0,   // Carbon credit
                            100, // emitVals
-                           5, 10,
+                           5, 0,
                            makeMap(cleanEnergy,
                                    vector<double>{// 100 ,
-                                                  50}),
-                           makeMap(cleanEnergy, vector<double>{// 0,
-                                                               0}));
+                                                  0}),
+                           makeMap(cleanEnergy,
+                                   vector<double>{// 0,
+                                                  0}),
+                           100, // prodnVal
+                           0    // Tax
+  );
 
-  cci::LeadPar Country2Par(-1, // Import limit
-                           -1, // Export limit
-                           73, // Min reqd consum
+  cci::LeadPar Country2Par(73, // Min reqd consum
                            0,  // Carbon credit
                            10, // emitVals
-                           1, 2,
+                           1, 0,
                            makeMap(cleanEnergy,
                                    vector<double>{// 50,
-                                                  100}),
-                           makeMap(cleanEnergy, vector<double>{// 0,
-                                                               0}));
+                                                  0}),
+                           makeMap(cleanEnergy,
+                                   vector<double>{// 0,
+                                                  0}),
+                           100, // prodnVal
+                           0    // Tax
+  );
 
   linQuad DP1s1 = {1000, 1};
   // linQuad DP1s2 = {1200, 0.95};
@@ -205,6 +209,8 @@ int main() {
   cout << "\nemitCost\n";
   print(emitCost);
 
+  cci::commonData supplyData(100,1);
+
   /*
 #     #
 ##   ##   ####   #####   ######  #
@@ -219,7 +225,7 @@ int main() {
   GRBEnv env;
   try {
     cci::EPEC<NUM_DIRTY, NUM_CLEAN, NUM_SCEN> epec(&env, dirtyEnergy,
-                                                   cleanEnergy);
+                                                   cleanEnergy, supplyData);
 
     epec.addCountry(c1).addCountry(c2);
     epec.finalize();

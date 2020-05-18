@@ -64,6 +64,8 @@ public:
 private:
   const std::vector<std::string> dirtyEnergy;
   const std::vector<std::string> cleanEnergy;
+
+  const commonData comDat;
   /// cci::energy should contain everything in dirtyEnergy and cleanEnergy
   std::vector<std::string> energy;
 
@@ -77,8 +79,7 @@ private:
   static constexpr unsigned int FollProdClean{FollProdDirty + n_Dirty * n_Scen};
   static constexpr unsigned int FollCarbBuy{n_Clean +
                                             (n_Clean + n_Dirty) * n_Scen};
-  static constexpr unsigned int FollCarbSel{FollCarbBuy + 1};
-  static constexpr unsigned int FollEnd{FollCarbSel + 1};
+  static constexpr unsigned int FollEnd{FollCarbBuy + 1};
 
   static constexpr unsigned int FollVarCount{FollEnd};
 
@@ -107,9 +108,7 @@ private:
   /// Makes the leader constraint matrix and RHS
   void make_LL_LeadCons(arma::sp_mat &LeadCons, arma::vec &LeadRHS,
                         const LeadAllPar<n_Scen> &Param,
-                        const cci::LeadLocs &Loc = {},
-                        const unsigned int import_lim_cons = 1,
-                        const unsigned int export_lim_cons = 1) const noexcept;
+                        const cci::LeadLocs &Loc = {}) const noexcept;
 
   void make_MC_cons(arma::sp_mat &MCLHS, arma::vec &MCRHS) const override;
 
@@ -128,8 +127,9 @@ public: // Attributes
   EPEC() = delete;
 
   EPEC(GRBEnv *env, const std::vector<std::string> dirtyEnergy,
-       const std::vector<std::string> cleanEnergy)
-      : Game::EPEC(env), dirtyEnergy{dirtyEnergy}, cleanEnergy{cleanEnergy} {
+       const std::vector<std::string> cleanEnergy, const commonData cD)
+      : Game::EPEC(env), dirtyEnergy{dirtyEnergy},
+        cleanEnergy{cleanEnergy}, comDat{cD} {
     if (dirtyEnergy.size() != n_Dirty || cleanEnergy.size() != n_Clean) {
       throw std::string(
           "Error in EPEC(): Illegal size of dirtyEnergy/cleanEnergy");
@@ -139,7 +139,7 @@ public: // Attributes
     this->energy.insert(energy.end(), cleanEnergy.cbegin(), cleanEnergy.cend());
   }
 
-  ///@brief %cci a Standard Nash-Cournot game within a country
+  ///@brief add a Standard Nash-Cournot game within a country
   EPEC &addCountry(
       /// The Parameter structure for the leader
       LeadAllPar<n_Scen> Params);
@@ -231,13 +231,13 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::initializeSoln(
     arma::vec &init_x) const {
   double chiToArg_Carb{20};
 
-  init_x.at(this->getPosition(0, cci::LeaderVars::CarbExp)) = chiToArg_Carb;
-  init_x.at(this->getPosition(1, cci::LeaderVars::CarbExp)) = -chiToArg_Carb;
+  // init_x.at(this->getPosition(0, cci::LeaderVars::CarbExp)) = chiToArg_Carb;
+  // init_x.at(this->getPosition(1, cci::LeaderVars::CarbExp)) = -chiToArg_Carb;
   init_x.at(this->getPosition(0, cci::LeaderVars::CarbImp)) = -chiToArg_Carb;
   init_x.at(this->getPosition(1, cci::LeaderVars::CarbImp)) = chiToArg_Carb;
 
-  init_x.at(this->getPosition(1, cci::LeaderVars::End)) = -2000;
-  init_x.at(this->getPosition(1, cci::LeaderVars::End) + 1) = -1000;
+  // init_x.at(this->getPosition(1, cci::LeaderVars::End)) = -2000;
+  // init_x.at(this->getPosition(1, cci::LeaderVars::End) + 1) = -1000;
 
   // init_x.at(this->getPosition(0,
 }

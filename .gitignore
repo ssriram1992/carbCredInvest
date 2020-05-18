@@ -21,9 +21,11 @@
 Sanbox*
 bin/
 dat/
+gams/
 obj/
 python/.*/*
 python/__pycache__/*
+python/temp*
 tags
 ycmBad.py
 ycmGood.py

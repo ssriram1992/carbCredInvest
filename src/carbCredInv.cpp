@@ -112,15 +112,6 @@ ostream &cci::operator<<(ostream &ost, const cci::LeadPar P) {
   ost << cci::prn::label << "Initial carbon credit allotted"
       << ":" << cci::prn::val << P.carbCreditInit;
   ost << '\n';
-  ost << cci::prn::label << "Export Limit"
-      << ":" << cci::prn::val
-      << (P.export_limit < 0 ? std::numeric_limits<double>::infinity()
-                             : P.export_limit);
-  ost << '\n';
-  ost << cci::prn::label << "Import Limit"
-      << ":" << cci::prn::val
-      << (P.import_limit < 0 ? std::numeric_limits<double>::infinity()
-                             : P.import_limit);
   ost << '\n';
   ost << cci::prn::label << "Min reqd consumption"
       << ":" << cci::prn::val
@@ -150,20 +141,14 @@ ostream &cci::operator<<(ostream &ost, const cci::LeaderVars l) {
   case cci::LeaderVars::Followers:
     ost << "cci::LeaderVars::Followers";
     break;
-  case cci::LeaderVars::CarbPrice:
-    ost << "cci::LeaderVars::CarbPrice";
-    break;
-  case cci::LeaderVars::CarbExp:
-    ost << "cci::LeaderVars::CarbExp";
+  case cci::LeaderVars::CarbImp:
+    ost << "cci::LeaderVars::CarbImp";
     break;
   case cci::LeaderVars::TotInv:
     ost << "cci::LeaderVars::TotInv";
     break;
   case cci::LeaderVars::TotEmission:
     ost << "cci::LeaderVars::TotEmission";
-    break;
-  case cci::LeaderVars::CarbImp:
-    ost << "cci::LeaderVars::CarbImp";
     break;
   case cci::LeaderVars::DualVar:
     ost << "cci::LeaderVars::DualVar";
