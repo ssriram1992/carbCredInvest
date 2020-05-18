@@ -33,9 +33,10 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_obj_leader(
   // Total investment cross terms
   for (unsigned int ii = 0; ii < n_Clean; ++ii) {
     for (unsigned int cc = 0; cc < this->getNcountries(); ++cc) {
+      if (cc == i) continue;
       QP_obj.C(Loc.at(LeaderVars::TotInv) + ii,
-               this->getPosition(this->getNcountries() - 1,
-                                 cci::LeaderVars::TotInv + ii) -
+               this->getPosition(cc,
+                                 cci::LeaderVars::TotInv) + ii -
                    nThisCountryvars) =
           Params.LeaderParam.cleanInvCrossVal.at(cleanEnergy.at(ii));
     }
@@ -47,8 +48,9 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_obj_leader(
   QP_obj.c(Loc.at(LeaderVars::TotEmission)) = Params.LeaderParam.emissionVal;
   // Emission cross terms
   for (unsigned int cc = 0; cc < this->getNcountries(); ++cc) {
+    if (cc == i) continue;
     QP_obj.C(Loc.at(LeaderVars::TotEmission),
-             this->getPosition(this->getNcountries() - 1,
+             this->getPosition(cc,
                                cci::LeaderVars::TotEmission) -
                  nThisCountryvars) = Params.LeaderParam.emissionCrossVal;
   }
