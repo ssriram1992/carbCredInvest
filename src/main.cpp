@@ -105,7 +105,7 @@ int main(int argc, char *argv[]) {
 
   // Country 1, first Follower
   cci::FollPar<NUM_SCEN> c1F1(0, string("c1F1"));
-  c1F1.name = string{"c1F1"};
+  c1F1.name = string{"F1"};
   c1F1.productionCosts = prodCost;
   c1F1.investmentCosts = invCost;
   c1F1.emissionCosts = emitCost;
@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
 
   // Country 1, second follower
   cci::FollPar<NUM_SCEN> c1F2(0, string("c1F2"));
-  c1F2.name = string{"c1F2"};
+  c1F2.name = string{"F2"};
   c1F2.productionCosts = prodCost;
   c1F2.investmentCosts = invCost;
   c1F2.emissionCosts = emitCost;
@@ -127,7 +127,7 @@ int main(int argc, char *argv[]) {
 
   // Country 2, first Follower
   cci::FollPar<NUM_SCEN> c2F1(0, string("c2F1"));
-  c2F1.name = string{"c2F1"};
+  c2F1.name = string{"F3"};
   c2F1.productionCosts = prodCost;
   c2F1.investmentCosts = invCost;
   c2F1.emissionCosts = emitCost;
@@ -140,7 +140,7 @@ int main(int argc, char *argv[]) {
 
   // Country 2, second follower
   cci::FollPar<NUM_SCEN> c2F2(0, string("c2F2"));
-  c2F2.name = string{"c2F2"};
+  c2F2.name = string{"F4"};
   c2F2.productionCosts = prodCost;
   c2F2.investmentCosts = invCost;
   c2F2.emissionCosts = emitCost;
@@ -179,10 +179,14 @@ int main(int argc, char *argv[]) {
 
   cci::LeadAllPar<NUM_SCEN> c1(
       2, "c1", vector<cci::FollPar<NUM_SCEN>>{c1F1, c1F2}, Country1Par, DP1,
-      array<double, NUM_SCEN>{1.0 / NUM_SCEN, 1.0/NUM_SCEN});
+      array<double, NUM_SCEN>{1.0 / NUM_SCEN, 1.0 / NUM_SCEN}
+      // Probability of the scenarios
+  );
   cci::LeadAllPar<NUM_SCEN> c2(
       2, "c2", vector<cci::FollPar<NUM_SCEN>>{c2F1, c2F2}, Country2Par, DP2,
-      array<double, NUM_SCEN>{1.0 / NUM_SCEN, 1.0/NUM_SCEN});
+      array<double, NUM_SCEN>{1.0 / NUM_SCEN, 1.0 / NUM_SCEN}
+      // Probability of the scenarios
+  );
 
   cout << "\ncleanEnergy\n";
   print(cleanEnergy);
@@ -197,7 +201,7 @@ int main(int argc, char *argv[]) {
   cout << "\nemitCost\n";
   print(emitCost);
 
-  cci::commonData supplyData(1, 0.05);
+  cci::commonData supplyData(1, 0.5);
 
   /*
 #     #
@@ -246,6 +250,7 @@ int main(int argc, char *argv[]) {
     epec.writeSolution(1, "dat/Sol");
     epec.writeLcpModel("dat/lcpmodel.lp");
     epec.writeLcpModel("dat/lcpmodel.sol");
+    epec.appendSolution4XL("dat/solLog", 35008, true);
   } catch (const string &s) {
     cerr << s << "\nOops\n";
     throw;

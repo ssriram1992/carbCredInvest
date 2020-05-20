@@ -166,6 +166,9 @@ public: // Attributes
 
   void write(const std::string filename, bool append = true) const;
 
+  void appendSolution4XL(const std::string filename, int problemID,
+                         bool append = true) const;
+
   void readSolutionJSON(const std::string filename);
 
   void writeSolutionJSON(std::string filename, const arma::vec x,

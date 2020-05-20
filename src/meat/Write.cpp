@@ -71,7 +71,10 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountryMCprice(
     supply += x.at(this->getPosition(cc, cci::LeaderVars::CarbImp));
   const double price = this->comDat.suppInt + this->comDat.suppSlope * supply;
 
-  file << prn::label << "Carbon Price: " << prn::val << price << '\n';
+  file << prn::label << "Total Carbon supplied: " << prn::val << supply << '\n';
+  file << prn::label << "Carbon Price: " << prn::val << this->comDat.suppInt
+       << " + " << this->comDat.suppSlope << " x Supply\n"
+       << prn::label << " " << prn::val << price << '\n';
 
   file << "**************************************************\n";
 
@@ -96,16 +99,17 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountry(
   // Carbon price and trades
   double carbDomPrice = Params.LeaderParam.taxCarbon;
   double carbImp = x.at(this->getPosition(i, cci::LeaderVars::CarbImp));
+  std::string nameShort = Params.name;
   // double carbExp = x.at(this->getPosition(i, cci::LeaderVars::CarbExp));
   // const double carbBuy = x.at(this->getPosition(i,
   // cci::LeaderVars::CarbBuy)); const double Nonconv =
   // x.at(this->getPosition(i, cci::LeaderVars::NonConv));
   double carbInit = Params.LeaderParam.carbCreditInit;
 
-  file << "Carbon credit details\n";
-  file << prn::label << "Initial credit: " << prn::val << carbInit << "\n";
-  file << prn::label << "Carbon Import: " << prn::val << carbImp << "\n";
-  file << prn::label << "Domestic carbon price: " << prn::val << carbDomPrice
+  file << nameShort << "\nCarbon credit details\n";
+  file << prn::label << "\tInitial credit: " << prn::val << carbInit << "\n";
+  file << prn::label << "\tCarbon Import: " << prn::val << carbImp << "\n";
+  file << prn::label << "\tDomestic carbon price: " << prn::val << carbDomPrice
        << "\n";
 
   // Follower productions
@@ -117,7 +121,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountry(
   file.open(filename, ios::app);
 
   file << "- - - - - - - - - - - - - - - - - - - - - - - - - \n";
-  file << "AGGREGATED DETAILS:\n";
+  file << "AGGREGATED DETAILS OF COUNTRY - " << nameShort << " \n";
 
   double Prod{0}, Price{0};
   file << "\n";
@@ -157,11 +161,13 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteFollower(
 
   const LeadAllPar<n_Scen> &Params = this->AllLeadPars.at(i);
   //
-  std::string name;
+  std::string name, nameShort;
   try {
     name = Params.name + " --- " + Params.FollowerParam.at(j).name;
+    nameShort = Params.FollowerParam.at(j).name;
   } catch (...) {
     name = "Follower " + std::to_string(j) + " of leader " + std::to_string(i);
+    nameShort = "L" + std::to_string(i) + "_F" + std::to_string(j);
   }
   file << "\n" << name << "\n\n";
 
@@ -172,11 +178,11 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteFollower(
   // file << prn::label << "CarbCred sold: " << prn::val
   // << x.at(foll_loc + FollCarbSel) << '\n';
   double carbNet = x.at(foll_loc + FollCarbBuy);
-  file << prn::label << (carbNet > 0 ? "Net purchased: " : "Net sold: ")
-       << prn::val << std::abs(carbNet) << '\n';
-  file << "Clean Investments\n";
+  file << prn::label << nameShort + " Carbon Credits purchased: " << prn::val
+       << std::abs(carbNet) << '\n';
+  file << nameShort << " Clean Investments\n";
   for (unsigned int ii = 0; ii < n_Clean; ++ii) {
-    file << prn::label << "Investments in " + this->cleanEnergy.at(ii) + ": "
+    file << prn::label << "\tInvestments in " + this->cleanEnergy.at(ii) + ": "
          << prn::val << x.at(foll_loc + FollInv + ii) << '\n';
   }
 
@@ -190,15 +196,15 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteFollower(
     unsigned int loc{foll_loc + FollProdDirty + scen * n_Dirty};
     for (unsigned int ii = 0; ii < n_Dirty; ++ii) {
       prod += x.at(loc + ii);
-      file << prn::label << this->dirtyEnergy.at(ii) + ": " << prn::val
+      file << prn::label << "\t" + this->dirtyEnergy.at(ii) + ": " << prn::val
            << x.at(loc + ii) << '\n';
     }
 
-    file << "\nClean means of production: \n";
+    file << "Clean means of production: \n";
     loc = {foll_loc + FollProdClean + scen * n_Clean};
     for (unsigned int ii = 0; ii < n_Clean; ++ii) {
       prod += x.at(loc + ii);
-      file << prn::label << this->cleanEnergy.at(ii) + ": " << prn::val
+      file << prn::label << "\t" + this->cleanEnergy.at(ii) + ": " << prn::val
            << x.at(loc + ii) << '\n';
     }
 
@@ -207,7 +213,8 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteFollower(
         "prod_" + std::to_string(i) + "_" + std::to_string(j) + "_" +
             std::to_string(scen),
         prod));
-    file << prn::label << " Quantity produced: " << prn::val << prod << "\n";
+    file << prn::label << nameShort + "Total energy produced: " << prn::val
+         << prod << "\n";
     // double trade = x.at(foll_loc + FollCbuyScen + scen) -
     //                x.at(foll_loc + FollCselScen + scen);
     // Trade += trade * prob;
@@ -217,7 +224,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteFollower(
     //      << prn::val << std::abs(trade) << "\n";
   }
 
-  file << "\nEXPECTED VALUES\n";
+  file << "\nEXPECTED VALUES:  " << nameShort << '\n';
   file << prn::label << " QUANTITY PRODUCED: " << prn::val << Prod << "\n";
   //
   dataMap.insert(std::pair<std::string, double>(
@@ -235,11 +242,10 @@ template <unsigned int n_Scen>
 std::ostream &cci::operator<<(std::ostream &ost,
                               const cci::LeadAllPar<n_Scen> P) {
   ost << "\n\n";
-  ost << "***************************"
+  ost << "****************************************"
       << "\n";
-  ost << "Leader Complete Description"
-      << "\n";
-  ost << "***************************"
+  ost << "Leader Complete Description: " << P.name << "\n";
+  ost << "****************************************"
       << "\n"
       << "\n";
   ost << cci::prn::label << "Number of followers"
@@ -283,4 +289,196 @@ std::ostream &cci::operator<<(std::ostream &ost, const cci::FollPar<n_Scen> P) {
   }
   ost << '\n';
   return ost;
+}
+
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+void cci::EPEC<n_Dirty, n_Clean, n_Scen>::appendSolution4XL(
+    const std::string filename, int problemID, bool append) const {
+
+  using std::string;
+  using std::stringstream;
+  using std::to_string;
+
+  const arma::vec x = this->getx();
+
+  std::ofstream file;
+  file.open(filename + ".txt", append ? ios::app : ios::out);
+  stringstream header("");
+  stringstream positions("");
+  stringstream content("");
+
+  header << "pId ";
+  positions << "#N/A ";
+  content << problemID << " ";
+  // Write common Paramter data
+  if (!append)
+    header << "suppInt suppSlope ";
+  if (!append)
+    positions << "#N/A #N/A ";
+  content << this->comDat.suppInt << " " << this->comDat.suppSlope << " ";
+  // Write parameter data by country
+  for (unsigned int cc = 0; cc < this->getNcountries(); ++cc) {
+    const auto &Params = this->AllLeadPars.at(cc);
+    string cName = Params.name + "_";
+    for (unsigned int ff = 0; ff < Params.n_followers; ++ff) {
+      string ffName =
+          string(cName + Params.FollowerParam.at(ff).name + "_"); // "c0_p0_"
+      // Production costs
+      for (const auto &ee : this->energy) {
+        if (!append) {
+          string vName = ffName + "prodCost_" + ee + "_";
+          header << vName + "lin " << vName + "quad ";
+          positions << "#N/A #N/A ";
+        }
+        content << Params.FollowerParam.at(ff).productionCosts.at(ee).first
+                << " "
+                << Params.FollowerParam.at(ff).productionCosts.at(ee).second
+                << " ";
+      }
+      // Deterministic Capacity costs
+      for (const auto &ee : this->energy) {
+        if (!append) {
+          string vName = ffName + "Cap_" + ee;
+          header << vName + " ";
+          positions << "#N/A ";
+        }
+        content << Params.FollowerParam.at(ff).capacities.at(ee) << " ";
+      }
+      // Capacity Factors
+      for (const auto &gg : this->cleanEnergy) {
+        if (!append) {
+          string vName = ffName + "CapFac_" + gg + "_xi";
+          for (unsigned int scen = 0; scen < n_Scen; scen++) {
+            header << vName + to_string(scen) + " ";
+            positions << "#N/A ";
+          }
+        }
+        for (unsigned int scen = 0; scen < n_Scen; scen++)
+          content << Params.FollowerParam.at(ff).renewCapAdjust.at(scen).at(gg)
+                  << " ";
+      }
+      // Investment costs
+      for (const auto &gg : this->cleanEnergy) {
+        if (!append) {
+          string vName = ffName + "invCost_" + gg + "_";
+          header << vName + "lin " << vName + "quad ";
+          positions << "#N/A #N/A ";
+        }
+        content << Params.FollowerParam.at(ff).investmentCosts.at(gg).first
+                << " "
+                << Params.FollowerParam.at(ff).investmentCosts.at(gg).second
+                << " ";
+      }
+      // Emission costs
+      for (const auto &ee : this->energy) {
+        if (!append) {
+          string vName = ffName + "emitFac_" + ee + " ";
+          header << vName;
+          positions << "#N/A ";
+        }
+        content << Params.FollowerParam.at(ff).emissionCosts.at(ee) << " ";
+      }
+      // Initial Carbon Credit
+      if (!append) {
+        string vName = ffName + "carbCredInit ";
+        header << vName;
+        positions << "#N/A ";
+      }
+      content << Params.FollowerParam.at(ff).carbonCreditInit << " ";
+    }
+    // taxCarbon and prodnVal
+    if (!append) {
+      header << cName << "CarbonTax " << cName << "ProdnVal ";
+      positions << "#N/A #N/A ";
+    }
+    content << Params.LeaderParam.taxCarbon << " "
+            << Params.LeaderParam.prodnVal << " ";
+    // Not writing the emission/investment value etc. as they are not modified
+    // Demand parameters
+    for (unsigned int scen = 0; scen < n_Scen; ++scen) {
+      if (!append) {
+        header << cName << "DemInt_xi" << scen << " "
+               << "DemSlope_xi" << scen << " ";
+        positions << "#N/A #N/A ";
+      }
+      content << Params.DemandParam.at(scen).first << " "
+              << Params.DemandParam.at(scen).second << " ";
+    }
+  }
+
+  // Write solution data country by country
+  for (unsigned int cc = 0; cc < this->getNcountries(); ++cc) {
+    const auto &Params = this->AllLeadPars.at(cc);
+    string cName = Params.name + "_";
+    for (unsigned int ff = 0; ff < Params.n_followers; ++ff) {
+      string ffName =
+          string(cName + Params.FollowerParam.at(ff).name + "_"); // "c0_p0_"
+      // FollInv
+      for (int ii = 0; ii < n_Clean; ++ii) {
+        string vName = ffName + "Inv_"; // "c0_p0_Inv_"
+        const unsigned int posn = FollVarCount * ff + ii;
+        if (!append)
+          header << vName + this->cleanEnergy.at(ii) << " ";
+        if (!append)
+          positions << this->getPosition(cc, LeaderVars::Followers) + posn
+                    << " ";
+        content << x.at(this->getPosition(cc, LeaderVars::Followers) + posn)
+                << " ";
+      }
+      // FolProdDirty
+      for (int ii = 0; ii < n_Dirty; ++ii) {
+        for (int scen = 0; scen < n_Scen; ++scen) {
+          string vName = ffName + "Prod_"; // "c0_p0_Prod_"
+          const unsigned int posn =
+              FollVarCount * ff + FollProdDirty + scen * n_Dirty + ii;
+          if (!append)
+            header << vName + this->dirtyEnergy.at(ii) << "_xi" << scen << " ";
+          if (!append)
+            positions << this->getPosition(cc, LeaderVars::Followers) + posn
+                      << " ";
+          content << x.at(this->getPosition(cc, LeaderVars::Followers) + posn)
+                  << " ";
+        }
+      }
+      // FolProdClean
+      for (int ii = 0; ii < n_Clean; ++ii) {
+        for (int scen = 0; scen < n_Scen; ++scen) {
+          string vName = ffName + "Prod_"; // "c0_p0_Prod_"
+          const unsigned int posn =
+              FollVarCount * ff + FollProdClean + scen * n_Clean + ii;
+          if (!append)
+            header << vName + this->cleanEnergy.at(ii) << "_xi" << scen << " ";
+          if (!append)
+            positions << this->getPosition(cc, LeaderVars::Followers) + posn
+                      << " ";
+          content << x.at(this->getPosition(cc, LeaderVars::Followers) + posn)
+                  << " ";
+        }
+      }
+      // FollCarbBuy
+      const unsigned int posn = FollVarCount * ff + FollCarbBuy;
+      if (!append)
+        header << ffName + "CarbBuy ";
+      if (!append)
+        positions << this->getPosition(cc, LeaderVars::Followers) + posn << " ";
+      content << x.at(this->getPosition(cc, LeaderVars::Followers) + posn)
+              << " ";
+    } // Follower writing over!
+    unsigned int posn;
+    // CarbImp
+    if (!append)
+      header << cName + "CarbImp ";
+    posn = this->getPosition(cc, LeaderVars::CarbImp);
+    if (!append)
+      positions << posn << " ";
+    content << x.at(posn) << " ";
+  }
+  if (!append) {
+    file << header.str() << '\n'
+         << positions.str() << '\n'
+         << content.str() << '\n';
+  } else
+    file << content.str() << '\n';
+  file.close();
+  return;
 }

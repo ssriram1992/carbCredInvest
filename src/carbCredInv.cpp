@@ -116,12 +116,23 @@ ostream &cci::operator<<(ostream &ost, const cci::LeadPar P) {
   ost << cci::prn::label << "Min reqd consumption"
       << ":" << cci::prn::val
       << (P.consum_limit < 0 ? std::numeric_limits<double>::infinity()
-                             : P.consum_limit);
+                             : P.consum_limit)
+      << '\n';
+  ost << cci::prn::label
+      << "Weights for domestic energy production: " << cci::prn::val
+      << P.prodnVal << '\n';
+  ost << cci::prn::label << "Carbon Tax: " << cci::prn::val << P.taxCarbon
+      << '\n';
+  ost << cci::prn::label
+      << "Emission penalties (linear, quadratic): " << cci::prn::val
+      << P.emissionVal << ", " << P.emissionValQuad;
+
   ost << '\n';
   ost << "Investment Incentives: \n";
   for (const auto &cc : P.cleanInvVal)
-    ost << cci::prn::label << "Investment " << cci::prn::val << cc.first << ";"
+    ost << cci::prn::label << "Investment " << cc.first << cci::prn::val
         << cc.second << '\n';
+
   return ost;
 }
 
