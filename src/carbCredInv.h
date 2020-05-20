@@ -81,7 +81,8 @@ private:
                                             (n_Clean + n_Dirty) * n_Scen};
   static constexpr unsigned int FollEnd{FollCarbBuy + 1};
 
-  static constexpr unsigned int FollVarCount{FollEnd};
+  static constexpr unsigned int FollVarCount{
+      FollEnd}; // n_Clean +(n_Clean + n_Dirty) * n_Scen + 1
 
   std::vector<LeadAllPar<n_Scen>> AllLeadPars =
       {}; ///< The parameters of each leader in the EPEC game

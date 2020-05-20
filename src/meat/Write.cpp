@@ -97,13 +97,14 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountry(
   double carbDomPrice = Params.LeaderParam.taxCarbon;
   double carbImp = x.at(this->getPosition(i, cci::LeaderVars::CarbImp));
   // double carbExp = x.at(this->getPosition(i, cci::LeaderVars::CarbExp));
-  // const double carbBuy = x.at(this->getPosition(i, cci::LeaderVars::CarbBuy));
-  // const double Nonconv = x.at(this->getPosition(i, cci::LeaderVars::NonConv));
+  // const double carbBuy = x.at(this->getPosition(i,
+  // cci::LeaderVars::CarbBuy)); const double Nonconv =
+  // x.at(this->getPosition(i, cci::LeaderVars::NonConv));
   double carbInit = Params.LeaderParam.carbCreditInit;
 
   file << "Carbon credit details\n";
   file << prn::label << "Initial credit: " << prn::val << carbInit << "\n";
-  file << prn::label << "Carbon Import: " << prn::val <<  carbImp << "\n";
+  file << prn::label << "Carbon Import: " << prn::val << carbImp << "\n";
   file << prn::label << "Domestic carbon price: " << prn::val << carbDomPrice
        << "\n";
 
@@ -205,7 +206,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteFollower(
     dataMap.insert(std::pair<std::string, double>(
         "prod_" + std::to_string(i) + "_" + std::to_string(j) + "_" +
             std::to_string(scen),
-        Prod));
+        prod));
     file << prn::label << " Quantity produced: " << prn::val << prod << "\n";
     // double trade = x.at(foll_loc + FollCbuyScen + scen) -
     //                x.at(foll_loc + FollCselScen + scen);

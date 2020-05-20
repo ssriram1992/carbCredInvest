@@ -30,7 +30,8 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_obj_leader(
         -1 * Params.LeaderParam.cleanInvVal.at(cleanEnergy.at(ii));
     // Negative sign because investment has to be maximized
   }
-  
+  BOOST_LOG_TRIVIAL(trace)
+      << "In cci::EPEC::make_obj_leader: Local Investments over";
 
   // Total investment cross terms
   for (unsigned int ii = 0; ii < n_Clean; ++ii) {
@@ -39,11 +40,12 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_obj_leader(
         continue;
       QP_obj.C(Loc.at(LeaderVars::TotInv) + ii,
                this->getPosition(cc, cci::LeaderVars::TotInv) + ii -
-                   nThisCountryvars) =
+                   (cc > i ? nThisCountryvars : 0)) =
           Params.LeaderParam.cleanInvCrossVal.at(cleanEnergy.at(ii));
     }
   }
-
+  BOOST_LOG_TRIVIAL(trace)
+      << "In cci::EPEC::make_obj_leader: Investments cross over";
   // Emissions local
   QP_obj.Q(Loc.at(LeaderVars::TotEmission), Loc.at(LeaderVars::TotEmission)) =
       Params.LeaderParam.emissionValQuad;
@@ -54,9 +56,10 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_obj_leader(
       continue;
     QP_obj.C(Loc.at(LeaderVars::TotEmission),
              this->getPosition(cc, cci::LeaderVars::TotEmission) -
-                 nThisCountryvars) = Params.LeaderParam.emissionCrossVal;
+                 (cc > i ? nThisCountryvars : 0)) =
+        Params.LeaderParam.emissionCrossVal;
   }
-
+  BOOST_LOG_TRIVIAL(trace) << "In cci::EPEC::make_obj_leader: Emission over";
   // Production value
   for (unsigned int ff = 0; ff < Params.n_followers; ++ff) {
     for (unsigned int scen = 0; scen < n_Scen; ++scen) {
@@ -70,21 +73,22 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_obj_leader(
             -1 * probab * Params.LeaderParam.prodnVal;
     }
   }
-
+  BOOST_LOG_TRIVIAL(trace) << "In cci::EPEC::make_obj_leader: Production over";
   // Carbon credit trade term
   for (unsigned int ff = 0; ff < Params.n_followers; ++ff) {
     QP_obj.c(FollVarCount * ff + FollCarbBuy) = Params.LeaderParam.taxCarbon;
   }
   QP_obj.c(Loc.at(LeaderVars::CarbImp)) = this->comDat.suppInt;
   QP_obj.Q(Loc.at(LeaderVars::CarbImp), Loc.at(LeaderVars::CarbImp)) =
-      this->comDat.suppSlope;
+      this->comDat.suppSlope * 2;
   for (unsigned int cc = 0; cc < this->getNcountries(); ++cc) {
     if (cc == i)
       continue;
     QP_obj.C(Loc.at(LeaderVars::CarbImp),
              this->getPosition(cc, cci::LeaderVars::CarbImp) -
-                 nThisCountryvars) = this->comDat.suppInt;
+                 (cc > i ? nThisCountryvars : 0)) = this->comDat.suppInt;
   }
+  BOOST_LOG_TRIVIAL(trace) << "In cci::EPEC::make_obj_leader: Carbon Tradeover";
 }
 
 template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
@@ -194,8 +198,9 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
   // infrastructural limits
   // n_Clean*n_Scen for clean energy
   // infrastructural limits
-  // n_Scen for carbon credit limits
-  constexpr unsigned int n_Const = (n_Dirty + n_Clean) * n_Scen + n_Scen;
+  // n_Scen for emission limits
+  // 1 for Carbon Credit Limit
+  constexpr unsigned int n_Const = (n_Dirty + n_Clean) * n_Scen + n_Scen + 1;
 
   const auto &Follparam = Params.FollowerParam.at(follower);
 
@@ -269,8 +274,8 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
     }
   }
   // Energy Demand - off diagonal cross terms
-  for (unsigned int ii = 0; ii < n_Clean; ii++) {
-    for (unsigned int jj = 0; jj < ii; jj++) {
+  for (unsigned int ii = 0; ii < n_Dirty; ii++) {
+    for (unsigned int jj = 0; jj < n_Clean; jj++) {
       for (unsigned int scen = 0; scen < n_Scen; ++scen) {
         const auto pos1{FollProdDirty + n_Dirty * scen + ii};
         const auto pos2{FollProdClean + n_Clean * scen + jj};
@@ -295,7 +300,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
           if (i_nos < n_Dirty)
             return FollProdDirty + n_Dirty * scen + i_nos;
           else
-            return FollProdClean + n_Clean * scen + i_nos;
+            return FollProdClean + n_Clean * scen + (i_nos - n_Dirty);
         };
         const auto pos1 = pos(ii);
         const auto pos2 = pos(jj);
@@ -313,6 +318,15 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
   const auto &infCap = Follparam.capacities;
   const auto &renCapAdj = Follparam.renewCapAdjust;
   unsigned int constrCount{0};
+  // Carbon Credit limit
+  B(constrCount, FollCarbBuy) = 1;
+  A(constrCount, Loc.at(cci::LeaderVars::CarbImp) - FollVarCount) = -1;
+  for (unsigned int ff = 0; ff < Params.n_followers - 1; ++ff)
+
+    A(constrCount, ff * FollVarCount + FollCarbBuy) =
+        1; // Summing up Carb buy of all other followers
+
+  constrCount++;
   for (unsigned int scen = 0; scen < n_Scen; ++scen) {
     // Infrastructural limit
     for (unsigned int ii = 0; ii < n_Dirty; ++ii) {
@@ -343,6 +357,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
       B(constrCount, FollProdClean + scen * n_Clean + ii) =
           Follparam.emissionCosts.at(cleanEnergy.at(ii));
     b(constrCount) = Follparam.carbonCreditInit;
+    constrCount++;
   }
   // CONSTRAINTS Described
 
@@ -364,6 +379,8 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_LeadCons(
   // LeadCons and LeadRHS already have the right size
   LeadCons.zeros();
   LeadRHS.zeros();
+  BOOST_LOG_TRIVIAL(trace) << "make_LL_LeadCons: Nos: constraints: "
+                           << LeadRHS.n_rows;
   unsigned int constrCount{0};
   // Investment summing
   for (unsigned int ii = 0; ii < n_Clean; ++ii) {
@@ -373,6 +390,9 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_LeadCons(
     LeadCons(constrCount, Loc.at(LeaderVars::TotInv) + ii) = 1;
     constrCount += 1;
   }
+
+  BOOST_LOG_TRIVIAL(trace) << "make_LL_LeadCons: Investment summing over: "
+                           << constrCount;
 
   // Expected Emission summing
   for (unsigned int scen = 0; scen < n_Scen; ++scen) {
@@ -386,6 +406,10 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_LeadCons(
         const auto emitCost = Params.FollowerParam.at(ff).emissionCosts.at(pt);
         LeadCons(constrCount, FollVarCount * ff + FollProdDirty +
                                   n_Dirty * scen + ii) = probab * emitCost;
+        BOOST_LOG_TRIVIAL(debug)
+            << "make_LL_LeadCons: Dirty:"
+            << FollVarCount * ff + FollProdDirty + n_Dirty * scen + ii << "---"
+            << probab << "---" << emitCost << " --- " << probab * emitCost;
       }
       // Clean Producers
       for (unsigned int ii = 0; ii < n_Clean; ++ii) {
@@ -393,18 +417,25 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_LeadCons(
         const auto emitCost = Params.FollowerParam.at(ff).emissionCosts.at(pt);
         LeadCons(constrCount, FollVarCount * ff + FollProdClean +
                                   n_Clean * scen + ii) = probab * emitCost;
+        // BOOST_LOG_TRIVIAL(debug) << "make_LL_LeadCons: Clean:" <<
+        // FollVarCount * ff + FollProdClean +
+        //                           n_Clean * scen + ii;
       }
-      LeadCons(constrCount, Loc.at(LeaderVars::TotEmission)) = -1;
     }
   }
-  constrCount += 2;
+  LeadCons(constrCount, Loc.at(LeaderVars::TotEmission)) = -1;
+  BOOST_LOG_TRIVIAL(debug) << LeadCons.row(constrCount);
+  constrCount += 1;
+  BOOST_LOG_TRIVIAL(debug) << "make_LL_LeadCons: Exp Emission summing over: "
+                           << constrCount;
   // CarbBuy summing
   // LeadCons(constrCount, Loc.at(LeaderVars::CarbBuy)) = 1;
-  LeadCons(constrCount + 1, Loc.at(LeaderVars::CarbImp)) = -1;
+  LeadCons(constrCount, Loc.at(LeaderVars::CarbImp)) = -1;
   for (unsigned int ff = 0; ff < Params.n_followers; ff++)
-    LeadCons(constrCount + 1, FollVarCount * ff + FollCarbBuy) = 1;
+    LeadCons(constrCount, FollVarCount * ff + FollCarbBuy) = 1;
   LeadRHS(constrCount) = Params.LeaderParam.carbCreditInit;
   constrCount += 1;
+  BOOST_LOG_TRIVIAL(trace) << "make_LL_LeadCons: CarbBuy over: " << constrCount;
 }
 
 template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
