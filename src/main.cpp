@@ -36,7 +36,9 @@ template <typename t, typename u> void print(const std::map<t, u> &mm) {
     std::cout << x.first << "\t-\t" << x.second << "\n";
 }
 
-int main(int argc, char *argv[]) {
+void solveProb(GRBEnv &env, const int probId, const double pp1,
+               const double pp2, const double tax1, const double tax2,
+               const double suIn, const double suSl) {
   // First argument 1 for full enumeration
   using std::array;
   using std::cout;
@@ -157,8 +159,8 @@ int main(int argc, char *argv[]) {
                            0, // emitVals
                            0, 0, makeMap(cleanEnergy, vector<double>{0, 0}),
                            makeMap(cleanEnergy, vector<double>{0, 0}),
-                           300, // prodnVal
-                           10   // Tax
+                           pp1, // prodnVal
+                           tax1 // Tax
   );
 
   cci::LeadPar Country2Par(0, // Min reqd consum
@@ -166,8 +168,8 @@ int main(int argc, char *argv[]) {
                            0, // emitVals
                            0, 0, makeMap(cleanEnergy, vector<double>{0, 0}),
                            makeMap(cleanEnergy, vector<double>{0, 0}),
-                           100, // prodnVal
-                           5    // Tax
+                           pp2, // prodnVal
+                           tax2 // Tax
   );
 
   linQuad DP1s1 = {800, 1};
@@ -188,20 +190,20 @@ int main(int argc, char *argv[]) {
       // Probability of the scenarios
   );
 
-  cout << "\ncleanEnergy\n";
-  print(cleanEnergy);
-  cout << "\ndirtyEnergy\n";
-  print(dirtyEnergy);
-  cout << "\nenergy\n";
-  print(energy);
-  cout << "\nprodCost\n";
-  print(prodCost);
-  cout << "\ninvCost\n";
-  print(invCost);
-  cout << "\nemitCost\n";
-  print(emitCost);
+  // cout << "\ncleanEnergy\n";
+  // print(cleanEnergy);
+  // cout << "\ndirtyEnergy\n";
+  // print(dirtyEnergy);
+  // cout << "\nenergy\n";
+  // print(energy);
+  // cout << "\nprodCost\n";
+  // print(prodCost);
+  // cout << "\ninvCost\n";
+  // print(invCost);
+  // cout << "\nemitCost\n";
+  // print(emitCost);
 
-  cci::commonData supplyData(1, 0.5);
+  cci::commonData supplyData(suIn, suSl);
 
   /*
 #     #
@@ -214,58 +216,102 @@ int main(int argc, char *argv[]) {
 
 */
   boost::log::core::get()->set_filter(boost::log::trivial::severity >=
-                                      boost::log::trivial::debug);
-  GRBEnv env;
+                                      boost::log::trivial::fatal);
   try {
+    // if (probId%10 == 0)
+    BOOST_LOG_TRIVIAL(fatal)
+        << "Running: " << probId << " (" << tax1 << "," << tax2 << "," << suIn
+        << "," << suSl << " " << pp1 << "," << pp2 << ") of 10290";
     cci::EPEC<NUM_DIRTY, NUM_CLEAN, NUM_SCEN> epec(&env, dirtyEnergy,
                                                    cleanEnergy, supplyData);
 
     epec.addCountry(c1).addCountry(c2);
     epec.finalize();
     epec.setAlgorithm(Game::EPECalgorithm::innerApproximation);
-    // epec.setPureNE(true);
+    epec.setPureNE(true);
     epec.setNumThreads(2);
-    std::string temp("");
-    if (argc >= 2)
-      temp = std::string(argv[1]);
-    if (temp == "1")
-      epec.setAlgorithm(Game::EPECalgorithm::fullEnumeration);
-    cout << "Now finding Nash Equilibrium";
-    std::string temp2 = R"(
-   #
-  # #    #        ####    ####   #####      #     #####  #    #  #    #
- #   #   #       #    #  #    #  #    #     #       #    #    #  ##  ##
-#     #  #       #       #    #  #    #     #       #    ######  # ## #
-#######  #       #  ###  #    #  #####      #       #    #    #  #    #
-#     #  #       #    #  #    #  #   #      #       #    #    #  #    #
-#     #  ######   ####    ####   #    #     #       #    #    #  #    #
-
-			)";
-    cout << temp2;
-
     // epec.setAggressiveness(1);
-    // epec.setTimeLimit(1000);
+    epec.setTimeLimit(60);
     epec.setAddPolyMethod(Game::EPECAddPolyMethod::reverse_sequential);
     epec.findNashEq();
-    epec.writeSolution(1, "dat/Sol");
-    epec.writeLcpModel("dat/lcpmodel.lp");
-    epec.writeLcpModel("dat/lcpmodel.sol");
-    epec.appendSolution4XL("dat/solLog", 35008, true);
+    // epec.writeSolution(1, "dat/Sol" + std::to_string(probId));
+    // epec.writeLcpModel("dat/lcpmodel_" + std::to_string(probId) + ".lp");
+    // epec.writeLcpModel("dat/lcpmodel_" + std::to_string(probId) + ".sol");
+    epec.appendSolution4XL("dat/MedPVsolLog", probId, probId > 1);
+    if (epec.getStatistics().status == Game::EPECsolveStatus::timeLimit) {
+      std::ofstream el;
+      el.open("dat/MedPVtimeLimit.log", ios::app);
+      cout << "Time Limit reached \n";
+      el << "TimeLimit in: " << probId << " (" << tax1 << "," << tax2 << ","
+         << suIn << "," << suSl << "," << pp1 << "," << pp2 << ")\n";
+      el.close();
+      epec.writeSolution(1, "dat/MedPVSol" + std::to_string(probId));
+      epec.writeLcpModel("dat/MedPVlcpmodel_" + std::to_string(probId) +
+                         ".lp");
+      // epec.writeLcpModel("dat/lcpmodel_" + std::to_string(probId) + ".sol");
+    }
+    if (epec.getStatistics().status != Game::EPECsolveStatus::nashEqFound) {
+      std::ofstream el;
+      el.open("dat/MedPVerrorLog.log", ios::app);
+      el << "Error in: " << probId << " (" << tax1 << "," << tax2 << "," << suIn
+         << "," << suSl << "," << pp1 << "," << pp2 << ")\n";
+      el.close();
+    }
   } catch (const string &s) {
     cerr << s << "\nOops\n";
+    std::ofstream el;
+    el.open("dat/MedPVerrorLog.log", ios::app);
+    el << "Error in: " << probId << " (" << tax1 << "," << tax2 << "," << suIn
+       << "," << suSl << "," << pp1 << "," << pp2 << ")\n";
+    el.close();
     throw;
   } catch (const GRBException &e) {
     cerr << "GRBException: " << e.getMessage() << '\n';
+    std::ofstream el;
+    el.open("dat/MedPVerrorLog.log", ios::app);
+    el << "Error in: " << probId << " (" << tax1 << "," << tax2 << "," << suIn
+       << "," << suSl << "," << pp1 << "," << pp2 << ")\n";
+    el.close();
+    throw;
   }
-  cout << R"( 
-######
-#     #   ####   #    #  ######
-#     #  #    #  ##   #  #
-#     #  #    #  # #  #  #####
-#     #  #    #  #  # #  #
-#     #  #    #  #   ##  #
-######    ####   #    #  ######
-)";
+}
 
+int main() {
+  /*std::ofstream el;
+  el.open("dat/MedPVerrorLog1.log", ios::out);
+  el << "Log file\n";
+  el.close();
+        */
+  // const std::vector<double> tax = {0, 2, 5, 10, 20, 50};
+  const std::vector<double> tax = {0, 20, 50, 100, 250, 500, 700};
+  const std::vector<double> slps = {0.01, 0.1, 0.5, 1, 2, 5};
+  const std::vector<double> ints = {0, 3, 5, 10, 25, 50, 100};
+  const std::vector<double> prodVals = {15, 20, 25, 30, 40};
+  // const std::vector<double> prodVals = {0, 5, 10};
+  // const std::vector<double> prodVals = {50, 150, 500, 1000};
+  GRBEnv e;
+  int count = 0;
+  for (const double t1 : tax)
+    for (const double t2 : tax)
+      for (double in : ints)
+        for (double sl : slps)
+          // for (const double pp1 : prodVals)
+          for (const double pp2 : prodVals) {
+            count++;
+            const double pp1 = pp2;
+            solveProb(e, count, pp1, pp2, t1, t2, in, sl);
+          }
+  cout << "count at finish: " << count << '\n';
+  cout << R"(
+
+#######
+#     #  #    #  ######  #####
+#     #  #    #  #       #    #
+#     #  #    #  #####   #    #
+#     #  #    #  #       #####
+#     #   #  #   #       #   #
+#######    ##    ######  #    #
+
+)";
   return 0;
 }
