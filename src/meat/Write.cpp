@@ -97,7 +97,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteCountry(
   file << "COUNTRY: " << Params.name << '\n';
   file << "**************************************************\n\n";
   // Carbon price and trades
-  double carbDomPrice = Params.LeaderParam.taxCarbon;
+  double carbDomPrice = x.at(this->getPosition(i, cci::LeaderVars::CarbTax));
   double carbImp = x.at(this->getPosition(i, cci::LeaderVars::CarbImp));
   std::string nameShort = Params.name;
   // double carbExp = x.at(this->getPosition(i, cci::LeaderVars::CarbExp));
@@ -213,7 +213,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WriteFollower(
         "prod_" + std::to_string(i) + "_" + std::to_string(j) + "_" +
             std::to_string(scen),
         prod));
-    file << prn::label << nameShort + "Total energy produced: " << prn::val
+    file << prn::label << nameShort + " - Total energy produced: " << prn::val
          << prod << "\n";
     // double trade = x.at(foll_loc + FollCbuyScen + scen) -
     //                x.at(foll_loc + FollCselScen + scen);

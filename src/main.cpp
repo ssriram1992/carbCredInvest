@@ -172,6 +172,13 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
                            tax2 // Tax
   );
 
+  Country1Par.follGenNash = false;
+  Country2Par.follGenNash = false;
+  c1F1.carbonLimitFrac = 1;
+  c1F2.carbonLimitFrac = 1;
+  c2F1.carbonLimitFrac = 0.5;
+  c1F2.carbonLimitFrac = 0.5;
+
   linQuad DP1s1 = {800, 1};
   linQuad DP1s2 = {1200, 1};
   linQuad DP2s1 = {1200, 1};
@@ -190,18 +197,6 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
       // Probability of the scenarios
   );
 
-  // cout << "\ncleanEnergy\n";
-  // print(cleanEnergy);
-  // cout << "\ndirtyEnergy\n";
-  // print(dirtyEnergy);
-  // cout << "\nenergy\n";
-  // print(energy);
-  // cout << "\nprodCost\n";
-  // print(prodCost);
-  // cout << "\ninvCost\n";
-  // print(invCost);
-  // cout << "\nemitCost\n";
-  // print(emitCost);
 
   cci::commonData supplyData(suIn, suSl);
 
@@ -216,7 +211,7 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
 
 */
   boost::log::core::get()->set_filter(boost::log::trivial::severity >=
-                                      boost::log::trivial::fatal);
+                                      boost::log::trivial::debug);
   try {
     // if (probId%10 == 0)
     BOOST_LOG_TRIVIAL(fatal)
@@ -237,26 +232,34 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
     // epec.writeSolution(1, "dat/Sol" + std::to_string(probId));
     // epec.writeLcpModel("dat/lcpmodel_" + std::to_string(probId) + ".lp");
     // epec.writeLcpModel("dat/lcpmodel_" + std::to_string(probId) + ".sol");
-    epec.appendSolution4XL("dat/MedPVsolLog", probId, probId > 1);
-    if (epec.getStatistics().status == Game::EPECsolveStatus::timeLimit) {
-      std::ofstream el;
-      el.open("dat/MedPVtimeLimit.log", ios::app);
-      cout << "Time Limit reached \n";
-      el << "TimeLimit in: " << probId << " (" << tax1 << "," << tax2 << ","
-         << suIn << "," << suSl << "," << pp1 << "," << pp2 << ")\n";
-      el.close();
-      epec.writeSolution(1, "dat/MedPVSol" + std::to_string(probId));
-      epec.writeLcpModel("dat/MedPVlcpmodel_" + std::to_string(probId) +
-                         ".lp");
-      // epec.writeLcpModel("dat/lcpmodel_" + std::to_string(probId) + ".sol");
+
+    {
+      std::string prefix = "test20200603_";
+      epec.appendSolution4XL("dat/" + prefix + "solLog", probId, probId > 1);
+      epec.writeSolution(1, "dat/" + prefix + "Sol" + std::to_string(probId));
+      if (epec.getStatistics().status == Game::EPECsolveStatus::timeLimit) {
+        std::ofstream el;
+        el.open("dat/" + prefix + "timeLimit.log", ios::app);
+        cout << "Time Limit reached \n";
+        el << "TimeLimit in: " << probId << " (" << tax1 << "," << tax2 << ","
+           << suIn << "," << suSl << "," << pp1 << "," << pp2 << ")\n";
+        el.close();
+        epec.writeSolution(1, "dat/" + prefix + "Sol" + std::to_string(probId));
+        epec.writeLcpModel("dat/" + prefix + "lcpmodel_" +
+                           std::to_string(probId) + ".lp");
+        // epec.writeLcpModel("dat/lcpmodel_" + std::to_string(probId) +
+        // ".sol");
+      }
+      if (epec.getStatistics().status != Game::EPECsolveStatus::nashEqFound) {
+        std::ofstream el;
+        el.open("dat/" + prefix + "errorLog.log", ios::app);
+        el << "Error in: " << probId << " (" << tax1 << "," << tax2 << ","
+           << suIn << "," << suSl << "," << pp1 << "," << pp2 << ")\n";
+        el.close();
+      } else
+        cout << "Successful solve\n";
     }
-    if (epec.getStatistics().status != Game::EPECsolveStatus::nashEqFound) {
-      std::ofstream el;
-      el.open("dat/MedPVerrorLog.log", ios::app);
-      el << "Error in: " << probId << " (" << tax1 << "," << tax2 << "," << suIn
-         << "," << suSl << "," << pp1 << "," << pp2 << ")\n";
-      el.close();
-    }
+
   } catch (const string &s) {
     cerr << s << "\nOops\n";
     std::ofstream el;
@@ -290,18 +293,19 @@ int main() {
   // const std::vector<double> prodVals = {0, 5, 10};
   // const std::vector<double> prodVals = {50, 150, 500, 1000};
   GRBEnv e;
-  int count = 0;
-  for (const double t1 : tax)
-    for (const double t2 : tax)
-      for (double in : ints)
-        for (double sl : slps)
-          // for (const double pp1 : prodVals)
-          for (const double pp2 : prodVals) {
-            count++;
-            const double pp1 = pp2;
-            solveProb(e, count, pp1, pp2, t1, t2, in, sl);
-          }
-  cout << "count at finish: " << count << '\n';
+  // int count = 0;
+  // for (const double t1 : tax)
+  //   for (const double t2 : tax)
+  //     for (double in : ints)
+  //       for (double sl : slps)
+  //         // for (const double pp1 : prodVals)
+  //         for (const double pp2 : prodVals) {
+  //           count++;
+  //           const double pp1 = pp2;
+  //           solveProb(e, count, pp1, pp2, t1, t2, in, sl);
+  //         }
+  // cout << "count at finish: " << count << '\n';
+  solveProb(e, 1, 100, 1000, -1, 5, 3, 0.1);
   cout << R"(
 
 #######

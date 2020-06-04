@@ -77,8 +77,9 @@ private:
   static constexpr unsigned int FollInv{0};
   static constexpr unsigned int FollProdDirty{n_Clean};
   static constexpr unsigned int FollProdClean{FollProdDirty + n_Dirty * n_Scen};
-  static constexpr unsigned int FollCarbBuy{n_Clean +
-                                            (n_Clean + n_Dirty) * n_Scen};
+  static constexpr unsigned int FollCarbBuy{
+      FollProdClean +
+      n_Clean * n_Scen}; // =  n_Clean +(n_Clean + n_Dirty) * n_Scen
   static constexpr unsigned int FollEnd{FollCarbBuy + 1};
 
   static constexpr unsigned int FollVarCount{

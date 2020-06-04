@@ -21,7 +21,8 @@ template <unsigned int n_Scen> struct FollPar {
   std::map<std::string, double> emissionCosts;
 
   double carbonCreditInit = 0;
-  std::string name = {}; ///< Optional Names for the Followers.
+  double carbonLimitFrac = 0.5; // Number between 0 to 1
+  std::string name = {};        ///< Optional Names for the Followers.
 
   FollPar(double cCI = 0, std::string name = "")
       : carbonCreditInit{cCI}, name{name} {}
@@ -52,7 +53,13 @@ struct LeadPar {
                              ///< domestic emission and emission by others
   double prodnVal{100};
 
-  double taxCarbon = 0;
+  bool follGenNash{
+      false}; ///< Whether the followers have the constraint that the total
+              ///< carbon consumed by all the followers together is at most the
+              ///< credits that their corresponding leader has.
+
+  double taxCarbon =
+      -1; ///< -1 implies tax is a variable. Any positive value fixes tax there
 
   LeadPar(double consum_limit = 0, double carbCred = 0, double emitVal = 0,
           double emitQuad = 0, double emitCross = 0,
@@ -105,6 +112,8 @@ struct EPECInstance {
 enum class LeaderVars {
   Followers,
   CarbImp,
+  CarbTax,
+  CarbFollLim,
   TotInv,
   TotEmission,
   DualVar,

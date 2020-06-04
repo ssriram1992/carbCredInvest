@@ -104,6 +104,8 @@ cci::EPEC<n_Dirty, n_Clean, n_Scen>::addCountry(
   cci::increaseVal(Loc, LeaderVars::Followers,
                    Params.n_followers * this->FollVarCount);
   cci::increaseVal(Loc, LeaderVars::CarbImp, 1);
+  cci::increaseVal(Loc, LeaderVars::CarbTax, 1);
+  cci::increaseVal(Loc, LeaderVars::CarbFollLim, Params.n_followers);
   cci::increaseVal(Loc, LeaderVars::TotInv, n_Clean);
   cci::increaseVal(Loc, LeaderVars::TotEmission, 1);
 
@@ -114,10 +116,12 @@ cci::EPEC<n_Dirty, n_Clean, n_Scen>::addCountry(
   // TotEmission
 
   // Leader Constraints
-  arma::sp_mat LeadCons(n_Clean + // Investment summing
-                            1 +   // Emission summing
-                            1,    // Carbon credits >=0
-                        Loc[cci::LeaderVars::End] - this->LL_MC_count);
+  arma::sp_mat LeadCons(
+      n_Clean +                                        // Investment summing
+          1 +                                          // Emission summing
+          (Params.LeaderParam.taxCarbon < 0 ? 0 : 2) + // Fixing the tax?
+          1,                                           // Carbon credits >=0
+      Loc[cci::LeaderVars::End] - this->LL_MC_count);
   arma::vec LeadRHS(LeadCons.n_rows, arma::fill::zeros);
   std::vector<std::shared_ptr<Game::QP_Param>> FollowersVec{};
   // Create the QP_Param* for each follower
@@ -192,17 +196,22 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
       Loc.at(cci::LeaderVars::End) - this->FollVarCount * n_Foll;
   const unsigned int otherVars = LeadVars + (n_Foll - 1) * FollVarCount;
 
+  const auto &Follparam = Params.FollowerParam.at(follower);
+
   arma::sp_mat Q(FollVarCount, FollVarCount);
   arma::sp_mat C(FollVarCount, otherVars);
+  // 1 for generalized Nash
   // n_Dirty*n_Scen for dirty energy
   // infrastructural limits
   // n_Clean*n_Scen for clean energy
   // infrastructural limits
   // n_Scen for emission limits
   // 1 for Carbon Credit Limit
-  constexpr unsigned int n_Const = (n_Dirty + n_Clean) * n_Scen + n_Scen + 1;
-
-  const auto &Follparam = Params.FollowerParam.at(follower);
+  const unsigned int n_Const =
+      (Params.LeaderParam.follGenNash ? 1 : 0) + // Generalized Nash constraint
+      (n_Dirty + n_Clean) * n_Scen + n_Scen +
+      (Follparam.carbonLimitFrac >= 1 ? 0 : 1) + // CarbFollLim constraint
+      1;
 
   arma::sp_mat A(n_Const, otherVars);
   arma::sp_mat B(n_Const, FollVarCount);
@@ -288,7 +297,9 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
 
   // c - the crossterms
   // Carbon tax by government times carbon purchased
-  c(FollCarbBuy) = Params.LeaderParam.taxCarbon;
+  // c(FollCarbBuy) = Params.LeaderParam.taxCarbon;
+  C(FollCarbBuy, Loc.at(LeaderVars::CarbTax) - FollVarCount) = 1;
+  // C(FollCarbSel, Loc.at(LeaderVars::CarbTax) - FollVarCount) = -1;
 
   // C - the crossterms
   for (unsigned int scen = 0; scen < n_Scen; scen++) {
@@ -318,15 +329,18 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
   const auto &infCap = Follparam.capacities;
   const auto &renCapAdj = Follparam.renewCapAdjust;
   unsigned int constrCount{0};
-  // Carbon Credit limit
-  B(constrCount, FollCarbBuy) = 1;
-  A(constrCount, Loc.at(cci::LeaderVars::CarbImp) - FollVarCount) = -1;
-  for (unsigned int ff = 0; ff < Params.n_followers - 1; ++ff)
+  if (Params.LeaderParam.follGenNash) {
+    //  General Nash constraint
+    B(constrCount, FollCarbBuy) = 1;
+    A(constrCount, Loc.at(cci::LeaderVars::CarbImp) - FollVarCount) = -1;
+    for (unsigned int ff = 0; ff < Params.n_followers - 1; ++ff)
 
-    A(constrCount, ff * FollVarCount + FollCarbBuy) =
-        1; // Summing up Carb buy of all other followers
+      A(constrCount, ff * FollVarCount + FollCarbBuy) =
+          1; // Summing up Carb buy of all other followers
+    b(constrCount) = Params.LeaderParam.carbCreditInit;
+    constrCount++;
+  }
 
-  constrCount++;
   for (unsigned int scen = 0; scen < n_Scen; ++scen) {
     // Infrastructural limit
     for (unsigned int ii = 0; ii < n_Dirty; ++ii) {
@@ -358,8 +372,20 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
           Follparam.emissionCosts.at(cleanEnergy.at(ii));
     b(constrCount) = Follparam.carbonCreditInit;
     constrCount++;
+
+    // carbonLimitFrac constraint
+    if (Follparam.carbonLimitFrac < 1) {
+      B(constrCount, FollCarbBuy) = 1;
+      A(constrCount, Loc.at(cci::LeaderVars::CarbImp) - FollVarCount) =
+          -Follparam.carbonLimitFrac;
+      constrCount++;
+    }
   }
   // CONSTRAINTS Described
+  if (constrCount != n_Const)
+    BOOST_LOG_TRIVIAL(error)
+        << "Inside cci::EPEC::make_LL_QP: constrCount != n_Const: "
+        << constrCount << " !=" << n_Const;
 
   Foll->set(Q, C, A, B, c, b);
   BOOST_LOG_TRIVIAL(trace) << "Inside cci::EPEC::make_LL_QP:end";
@@ -424,7 +450,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_LeadCons(
     }
   }
   LeadCons(constrCount, Loc.at(LeaderVars::TotEmission)) = -1;
-  BOOST_LOG_TRIVIAL(debug) << LeadCons.row(constrCount);
+
   constrCount += 1;
   BOOST_LOG_TRIVIAL(debug) << "make_LL_LeadCons: Exp Emission summing over: "
                            << constrCount;
@@ -436,6 +462,16 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_LeadCons(
   LeadRHS(constrCount) = Params.LeaderParam.carbCreditInit;
   constrCount += 1;
   BOOST_LOG_TRIVIAL(trace) << "make_LL_LeadCons: CarbBuy over: " << constrCount;
+
+  // Tax Constraints
+  const double taxAmt = Params.LeaderParam.taxCarbon;
+  if (taxAmt >= 0) {
+    LeadCons(constrCount, Loc.at(LeaderVars::CarbTax)) = 1;
+    LeadRHS(constrCount) = taxAmt;
+    LeadCons(constrCount + 1, Loc.at(LeaderVars::CarbTax)) = -1;
+    LeadRHS(constrCount + 1) = -taxAmt;
+    constrCount += 2;
+  }
 }
 
 template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
