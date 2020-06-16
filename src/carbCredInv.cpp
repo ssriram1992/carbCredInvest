@@ -155,6 +155,9 @@ ostream &cci::operator<<(ostream &ost, const cci::LeaderVars l) {
   case cci::LeaderVars::CarbImp:
     ost << "cci::LeaderVars::CarbImp";
     break;
+  case cci::LeaderVars::CarbTax:
+    ost << "cci::LeaderVars::CarbTax";
+    break;
   case cci::LeaderVars::TotInv:
     ost << "cci::LeaderVars::TotInv";
     break;

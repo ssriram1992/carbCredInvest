@@ -89,6 +89,9 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_obj_leader(
                  (cc > i ? nThisCountryvars : 0)) = this->comDat.suppInt;
   }
   BOOST_LOG_TRIVIAL(trace) << "In cci::EPEC::make_obj_leader: Carbon Tradeover";
+  QP_obj.Q = QP_obj.Q / 1000;
+  QP_obj.C = QP_obj.C / 1000;
+  QP_obj.c = QP_obj.c / 1000;
 }
 
 template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
@@ -105,7 +108,7 @@ cci::EPEC<n_Dirty, n_Clean, n_Scen>::addCountry(
                    Params.n_followers * this->FollVarCount);
   cci::increaseVal(Loc, LeaderVars::CarbImp, 1);
   cci::increaseVal(Loc, LeaderVars::CarbTax, 1);
-  cci::increaseVal(Loc, LeaderVars::CarbFollLim, Params.n_followers);
+  // cci::increaseVal(Loc, LeaderVars::CarbFollLim, Params.n_followers);
   cci::increaseVal(Loc, LeaderVars::TotInv, n_Clean);
   cci::increaseVal(Loc, LeaderVars::TotEmission, 1);
 
@@ -117,7 +120,8 @@ cci::EPEC<n_Dirty, n_Clean, n_Scen>::addCountry(
 
   // Leader Constraints
   arma::sp_mat LeadCons(
-      n_Clean +                                        // Investment summing
+      (Params.LeaderParam.consum_limit > 0 ? 1 : 0) +  // Minimum consumption
+          n_Clean +                                    // Investment summing
           1 +                                          // Emission summing
           (Params.LeaderParam.taxCarbon < 0 ? 0 : 2) + // Fixing the tax?
           1,                                           // Carbon credits >=0
@@ -210,7 +214,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
   const unsigned int n_Const =
       (Params.LeaderParam.follGenNash ? 1 : 0) + // Generalized Nash constraint
       (n_Dirty + n_Clean) * n_Scen + n_Scen +
-      (Follparam.carbonLimitFrac >= 1 ? 0 : 1) + // CarbFollLim constraint
+      // (Follparam.carbonLimitFrac >= 1 ? 0 : 1) + // CarbFollLim constraint
       1;
 
   arma::sp_mat A(n_Const, otherVars);
@@ -408,6 +412,28 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_LeadCons(
   BOOST_LOG_TRIVIAL(trace) << "make_LL_LeadCons: Nos: constraints: "
                            << LeadRHS.n_rows;
   unsigned int constrCount{0};
+  // consum_limit constraint
+  if (Params.LeaderParam.consum_limit > 0) {
+    for (unsigned int scen = 0; scen < n_Scen; ++scen) {
+      const auto probab =
+          Params.scenProb.at(scen); // Probability of the current scenario
+      for (unsigned int ff = 0; ff < Params.n_followers; ++ff) {
+        // Dirty Producers
+        for (unsigned int ii = 0; ii < n_Dirty; ++ii) {
+          LeadCons(constrCount, FollVarCount * ff + FollProdDirty +
+                                    n_Dirty * scen + ii) = -probab;
+        }
+        // Clean Producers
+        for (unsigned int ii = 0; ii < n_Clean; ++ii) {
+          LeadCons(constrCount, FollVarCount * ff + FollProdClean +
+                                    n_Clean * scen + ii) = -probab;
+        }
+      }
+    }
+    LeadRHS(constrCount) = -Params.LeaderParam.consum_limit;
+    constrCount++;
+  }
+
   // Investment summing
   for (unsigned int ii = 0; ii < n_Clean; ++ii) {
     for (unsigned int ff = 0; ff < Params.n_followers; ++ff) {
@@ -432,10 +458,6 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_LeadCons(
         const auto emitCost = Params.FollowerParam.at(ff).emissionCosts.at(pt);
         LeadCons(constrCount, FollVarCount * ff + FollProdDirty +
                                   n_Dirty * scen + ii) = probab * emitCost;
-        BOOST_LOG_TRIVIAL(debug)
-            << "make_LL_LeadCons: Dirty:"
-            << FollVarCount * ff + FollProdDirty + n_Dirty * scen + ii << "---"
-            << probab << "---" << emitCost << " --- " << probab * emitCost;
       }
       // Clean Producers
       for (unsigned int ii = 0; ii < n_Clean; ++ii) {

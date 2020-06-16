@@ -84,3 +84,13 @@ obj/main.o: src/main.cpp src/carbCredInv.h
 
 src/carbCredInv.h: src/meat/Write.cpp src/meat/Helpers.cpp src/bones/dataLoad.h src/bones/helpers.h
 	@echo "Complete recompilation"
+
+obj/readWrite.o: src/readWrite.cpp
+	g++ -c -o obj/readWrite.o src/readWrite.cpp $(OPTS)
+
+bin/readWrite: obj/readWrite.o
+	g++ -o bin/readWrite -std=c++14 obj/readWrite.o
+
+readWrite: bin/readWrite
+	@echo "readWrite ready"
+

@@ -308,13 +308,13 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::appendSolution4XL(
   stringstream content("");
 
   header << "pId ";
-  positions << "#N/A ";
+  positions << "-1 ";
   content << problemID << " ";
   // Write common Paramter data
   if (!append)
     header << "suppInt suppSlope ";
   if (!append)
-    positions << "#N/A #N/A ";
+    positions << "-1 -1 ";
   content << this->comDat.suppInt << " " << this->comDat.suppSlope << " ";
   // Write parameter data by country
   for (unsigned int cc = 0; cc < this->getNcountries(); ++cc) {
@@ -328,7 +328,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::appendSolution4XL(
         if (!append) {
           string vName = ffName + "prodCost_" + ee + "_";
           header << vName + "lin " << vName + "quad ";
-          positions << "#N/A #N/A ";
+          positions << "-1 -1 ";
         }
         content << Params.FollowerParam.at(ff).productionCosts.at(ee).first
                 << " "
@@ -340,7 +340,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::appendSolution4XL(
         if (!append) {
           string vName = ffName + "Cap_" + ee;
           header << vName + " ";
-          positions << "#N/A ";
+          positions << "-1 ";
         }
         content << Params.FollowerParam.at(ff).capacities.at(ee) << " ";
       }
@@ -350,7 +350,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::appendSolution4XL(
           string vName = ffName + "CapFac_" + gg + "_xi";
           for (unsigned int scen = 0; scen < n_Scen; scen++) {
             header << vName + to_string(scen) + " ";
-            positions << "#N/A ";
+            positions << "-1 ";
           }
         }
         for (unsigned int scen = 0; scen < n_Scen; scen++)
@@ -362,7 +362,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::appendSolution4XL(
         if (!append) {
           string vName = ffName + "invCost_" + gg + "_";
           header << vName + "lin " << vName + "quad ";
-          positions << "#N/A #N/A ";
+          positions << "-1 -1 ";
         }
         content << Params.FollowerParam.at(ff).investmentCosts.at(gg).first
                 << " "
@@ -374,7 +374,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::appendSolution4XL(
         if (!append) {
           string vName = ffName + "emitFac_" + ee + " ";
           header << vName;
-          positions << "#N/A ";
+          positions << "-1 ";
         }
         content << Params.FollowerParam.at(ff).emissionCosts.at(ee) << " ";
       }
@@ -382,14 +382,14 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::appendSolution4XL(
       if (!append) {
         string vName = ffName + "carbCredInit ";
         header << vName;
-        positions << "#N/A ";
+        positions << "-1 ";
       }
       content << Params.FollowerParam.at(ff).carbonCreditInit << " ";
     }
     // taxCarbon and prodnVal
     if (!append) {
       header << cName << "CarbonTax " << cName << "ProdnVal ";
-      positions << "#N/A #N/A ";
+      positions << "-1 -1 ";
     }
     content << Params.LeaderParam.taxCarbon << " "
             << Params.LeaderParam.prodnVal << " ";
@@ -398,8 +398,8 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::appendSolution4XL(
     for (unsigned int scen = 0; scen < n_Scen; ++scen) {
       if (!append) {
         header << cName << "DemInt_xi" << scen << " "
-               << "DemSlope_xi" << scen << " ";
-        positions << "#N/A #N/A ";
+               << cName << "DemSlope_xi" << scen << " ";
+        positions << "-1 -1 ";
       }
       content << Params.DemandParam.at(scen).first << " "
               << Params.DemandParam.at(scen).second << " ";
@@ -472,6 +472,20 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::appendSolution4XL(
     if (!append)
       positions << posn << " ";
     content << x.at(posn) << " ";
+    // CarbTax
+    if (!append)
+      header << cName + "CarbTax ";
+    posn = this->getPosition(cc, LeaderVars::CarbTax);
+    if (!append)
+      positions << posn << " ";
+    content << x.at(posn) << " ";
+    // TotEmission
+    if (!append)
+      header << cName + "TotEmission ";
+    posn = this->getPosition(cc, LeaderVars::TotEmission);
+    if (!append)
+      positions << posn << " ";
+    content << x.at(posn) << " ";
   }
   if (!append) {
     file << header.str() << '\n'
@@ -481,4 +495,16 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::appendSolution4XL(
     file << content.str() << '\n';
   file.close();
   return;
+}
+
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WritePositions(
+    const std::string filename) const {
+  std::ofstream file;
+  file.open(filename + ".txt", ios::out);
+	for(unsigned int i=0; i < this->getNcountries(); ++i)
+      for (cci::LeaderVars l = cci::LeaderVars::Followers;l != cci::LeaderVars::End; l = l + 1) 
+				file<<i<<' ' <<l<<' ' <<this->getPosition(i, l)<<'\n';
+	file.close();
+	this->writeLcpModel(filename+".sol");
 }

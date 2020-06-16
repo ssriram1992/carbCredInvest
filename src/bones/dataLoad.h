@@ -113,7 +113,7 @@ enum class LeaderVars {
   Followers,
   CarbImp,
   CarbTax,
-  CarbFollLim,
+  // CarbFollLim,
   TotInv,
   TotEmission,
   DualVar,

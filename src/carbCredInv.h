@@ -177,6 +177,8 @@ public: // Attributes
 
   void writeSolution(const int writeLevel, std::string filename) const;
 
+	void WritePositions(const std::string filename) const;
+
   ///@brief Get the current EPECInstance loaded
   const EPECInstance<n_Dirty, n_Clean, n_Scen> getInstance() const {
     return EPECInstance<n_Dirty, n_Clean, n_Scen>(this->AllLeadPars);
