@@ -54,6 +54,7 @@ private:
     }
   };
   virtual void postfinalize() override{};
+  virtual GRBQuadExpr make_lcp_objective(GRBModel *) override;
   virtual void initializeSoln(arma::vec &init_x) const;
   // override;
 
@@ -177,7 +178,7 @@ public: // Attributes
 
   void writeSolution(const int writeLevel, std::string filename) const;
 
-	void WritePositions(const std::string filename) const;
+  void WritePositions(const std::string filename) const;
 
   ///@brief Get the current EPECInstance loaded
   const EPECInstance<n_Dirty, n_Clean, n_Scen> getInstance() const {

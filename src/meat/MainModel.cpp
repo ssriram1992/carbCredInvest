@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include "../bones/dataLoad.h"
 #include "../carbCredInv.h"
 
@@ -210,7 +211,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
   // n_Clean*n_Scen for clean energy
   // infrastructural limits
   // n_Scen for emission limits
-  // 1 for Carbon Credit Limit
+  // 1 for Carbon Credit Fractional Limit
   const unsigned int n_Const =
       (Params.LeaderParam.follGenNash ? 1 : 0) + // Generalized Nash constraint
       (n_Dirty + n_Clean) * n_Scen + n_Scen +
@@ -366,7 +367,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
       // Next constraint
       constrCount++;
     }
-    // Carbon credits limit Constraint
+    // Carbon credits emission limit Constraint
     B(constrCount, FollCarbBuy) = -1;
     for (unsigned int ii = 0; ii < n_Dirty; ++ii)
       B(constrCount, FollProdDirty + scen * n_Dirty + ii) =
@@ -376,15 +377,13 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
           Follparam.emissionCosts.at(cleanEnergy.at(ii));
     b(constrCount) = Follparam.carbonCreditInit;
     constrCount++;
-
-    // carbonLimitFrac constraint
-    if (Follparam.carbonLimitFrac < 1) {
-      B(constrCount, FollCarbBuy) = 1;
-      A(constrCount, Loc.at(cci::LeaderVars::CarbImp) - FollVarCount) =
-          -Follparam.carbonLimitFrac;
-      constrCount++;
-    }
   }
+
+  // carbonLimitFrac constraint
+  B(constrCount, FollCarbBuy) = 1;
+  A(constrCount, Loc.at(cci::LeaderVars::CarbImp) - FollVarCount) =
+      -std::min(1.0, Follparam.carbonLimitFrac);
+  constrCount++;
   // CONSTRAINTS Described
   if (constrCount != n_Const)
     BOOST_LOG_TRIVIAL(error)
@@ -511,4 +510,15 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_MC_cons(arma::sp_mat &MCLHS,
   // Output matrices
   MCRHS.zeros(0);
   MCLHS.zeros(0, this->getnVarinEPEC());
+}
+
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+GRBQuadExpr
+cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_lcp_objective(GRBModel *model) {
+  GRBQuadExpr expr{0};
+  for (unsigned int cc = 0; cc < this->getNcountries(); ++cc) {
+    unsigned int posn = this->getPosition(cc, LeaderVars::CarbImp);
+    expr += model->getVarByName("x_" + std::to_string(posn));
+  }
+  return expr;
 }

@@ -302,7 +302,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::appendSolution4XL(
   const arma::vec x = this->getx();
 
   std::ofstream file;
-  file.open(filename + ".txt", append ? ios::app : ios::out);
+  file.open(filename + ".dat", append ? ios::app : ios::out);
   stringstream header("");
   stringstream positions("");
   stringstream content("");
@@ -397,8 +397,8 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::appendSolution4XL(
     // Demand parameters
     for (unsigned int scen = 0; scen < n_Scen; ++scen) {
       if (!append) {
-        header << cName << "DemInt_xi" << scen << " "
-               << cName << "DemSlope_xi" << scen << " ";
+        header << cName << "DemInt_xi" << scen << " " << cName << "DemSlope_xi"
+               << scen << " ";
         positions << "-1 -1 ";
       }
       content << Params.DemandParam.at(scen).first << " "
@@ -501,10 +501,11 @@ template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
 void cci::EPEC<n_Dirty, n_Clean, n_Scen>::WritePositions(
     const std::string filename) const {
   std::ofstream file;
-  file.open(filename + ".txt", ios::out);
-	for(unsigned int i=0; i < this->getNcountries(); ++i)
-      for (cci::LeaderVars l = cci::LeaderVars::Followers;l != cci::LeaderVars::End; l = l + 1) 
-				file<<i<<' ' <<l<<' ' <<this->getPosition(i, l)<<'\n';
-	file.close();
-	this->writeLcpModel(filename+".sol");
+  file.open(filename + ".dat", ios::out);
+  for (unsigned int i = 0; i < this->getNcountries(); ++i)
+    for (cci::LeaderVars l = cci::LeaderVars::Followers;
+         l != cci::LeaderVars::End; l = l + 1)
+      file << i << ' ' << l << ' ' << this->getPosition(i, l) << '\n';
+  file.close();
+  this->writeLcpModel(filename + ".sol");
 }

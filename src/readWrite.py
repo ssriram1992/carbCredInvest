@@ -158,11 +158,31 @@ class EPECio:
 #########################################################################################
 
 if __name__ == '__main__':
-#     argv = ["readWrite", "../dat/dbgsolLog.txt", "../dat/posSol.sol", "../dat/dbgSol.sol"]
-    argv = sys.argv
-    if len(argv) != 4:
-        print("Error! \n Format: readWrite dat/solutionLog.txt dat/lcpmodel.lp dat/outputName.txt\n")
-        exit(1)
+    """
+    Usage readWrite [prefix='Main'] [reoptimize=True] [verbose=True]
+    """
+    if len(sys.argv) > 1:
+        prefix = sys.argv[1]
+    else:
+        print ("No prefix provided in commandline. Use prefix: 'Main'")
+        prefix = 'Main'
+        
+    positions = "./dat/"+prefix+"solLog.dat"
+    lpfile = "./dat/"+prefix+"lcpmodel.lp"
+    unmod = "./dat/"+prefix+"unMod.txt"
+    mod = "./dat/"+prefix+"mod.txt"
+    
+    if len(sys.argv) > 2:
+        reoptimize = int(sys.argv[2])
+    else:
+        print("No second argument. So reoptimizing...")
+        reoptimize = True
+        
+    if len(sys.argv) > 3:
+        verbose = int(sys.argv[3])
+    else:
+        print("No third argument. So printing gurobi logs...")
+        verbose = 1
     
     # Preliminary data
     countries = ["c1","c2"]
@@ -172,32 +192,32 @@ if __name__ == '__main__':
     
     # Making the EPECio object
     epec = EPECio(countries, producers, dirty, clean)
-    epec.acquireData(argv[1])
-    
-    # Solving the gurobi model
-    M = gp.read(argv[2])
-    expr = M.getObjective()
-    expr += gp.quicksum([getGurVar(M, epec.locs, (cc,"CarbImp")) for cc in countries])*0.1
-    M.setObjective(expr)
-    M.optimize()
-    M.write("./dat/_tempSol.sol")
-    
-    # Getting the solution from the solved model
-    newVars = dict()
-    for kk in epec.locs.keys():
-        vv = epec.locs[kk]
-        newVars[kk] = getSolFromFile("x_"+str(vv), "./dat/_tempSol.sol")
-    epec.var = newVars
+    epec.acquireData(positions)
     
     # Writing the output
-    epec.writeAll(argv[3])
+    epec.writeAll(unmod)
+    
+    if reoptimize:
+        # Solving the gurobi model
+        M = gp.read(lpfile)
+        M.params.LogToConsole = verbose
+        expr = M.getObjective()
+        expr += gp.quicksum([getGurVar(M, epec.locs, (cc,"CarbImp")) for cc in countries])*0.1
+        M.setObjective(expr)
+        M.optimize()
+        M.write("./dat/_tempSol.sol")
 
+        # Getting the solution from the solved model
+        newVars = dict()
+        for kk in epec.locs.keys():
+            vv = epec.locs[kk]
+            newVars[kk] = getSolFromFile("x_"+str(vv), "./dat/_tempSol.sol")
+        epec.var = newVars
+        import os
+        os.remove("./dat/_tempSol.sol")
 
-
-
-
-
-
-
+        # Writing the output
+        epec.writeAll(mod)
+    print("Task completed successfully")
 
 

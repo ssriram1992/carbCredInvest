@@ -38,7 +38,8 @@ template <typename t, typename u> void print(const std::map<t, u> &mm) {
 
 void solveProb(GRBEnv &env, const int probId, const double pp1,
                const double pp2, const double tax1, const double tax2,
-               const double suIn, const double suSl) {
+               const double suIn, const double suSl,
+               const std::string pref = "") {
   // First argument 1 for full enumeration
   using std::array;
   using std::cout;
@@ -94,8 +95,8 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
   prodCost["gas"] = {12.88, 0.02};
   emitCost["gas"] = 0.370;
 
-  invCost["wind"] = {371, 0.11};
-  invCost["solar"] = {365, 0.12};
+  invCost["solar"] = {270, 0.07};
+  invCost["wind"] = {300, 0.25};
 
   // Country 1, first Follower
   cci::FollPar<NUM_SCEN> c1F1(0, string("c1F1"));
@@ -162,14 +163,16 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
 
   Country1Par.follGenNash = false;
   Country2Par.follGenNash = false;
-  c1F1.carbonLimitFrac = 0.5;
-  c1F2.carbonLimitFrac = 0.5;
-  c2F1.carbonLimitFrac = 0.5;
-  c1F2.carbonLimitFrac = 0.5;
 
-  linQuad DP1s1 = {3690, 0.05};
+  c1F1.carbonLimitFrac = 0.5 * 2;
+  c1F2.carbonLimitFrac = 0.5 * 2;
+
+  c2F1.carbonLimitFrac = 0.5 * 2;
+  c1F2.carbonLimitFrac = 0.5 * 2;
+
+  linQuad DP1s1 = {3690, 0.42};
   // linQuad DP1s2 = {1200, 1};
-  linQuad DP2s1 = {3690, 0.05};
+  linQuad DP2s1 = {3690, 0.42};
   // linQuad DP2s2 = {800, 1};
   array<linQuad, NUM_SCEN> DP1 = {DP1s1};
   array<linQuad, NUM_SCEN> DP2 = {DP2s1};
@@ -196,19 +199,20 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
 
 */
   boost::log::core::get()->set_filter(boost::log::trivial::severity >=
-                                      boost::log::trivial::debug);
+                                      boost::log::trivial::info);
   try {
     // if (probId%10 == 0)
     BOOST_LOG_TRIVIAL(fatal)
-        << "Running: " << probId << " (" << tax1 << "," << tax2 << "," << suIn
-        << "," << suSl << " " << pp1 << "," << pp2 << ") of 10290";
+        << "Running: " << pref << probId << "(tax1, tax2, suIn, suSl, pp1, pp2)"
+        << " (" << tax1 << "," << tax2 << "," << suIn << "," << suSl << " "
+        << pp1 << "," << pp2 << ") of 10290";
     cci::EPEC<NUM_DIRTY, NUM_CLEAN, NUM_SCEN> epec(&env, dirtyEnergy,
                                                    cleanEnergy, supplyData);
 
     epec.addCountry(c1).addCountry(c2);
     epec.finalize();
     epec.setAlgorithm(Game::EPECalgorithm::innerApproximation);
-    epec.setPureNE(true);
+    // epec.setPureNE(true);
     epec.setNumThreads(2);
     // epec.setAggressiveness(1);
     epec.setTimeLimit(60);
@@ -219,11 +223,11 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
     // epec.writeLcpModel("dat/lcpmodel_" + std::to_string(probId) + ".sol");
 
     {
-      std::string prefix = "dbg";
-      epec.appendSolution4XL("dat/" + prefix + "solLog", probId, probId > 1);
-      epec.writeSolution(1, "dat/" + prefix + "Sol" + std::to_string(probId));
-      epec.writeLcpModel("dat/" + prefix + "lcpmodel_" +
-                         std::to_string(probId) + ".lp");
+      std::string prefix = pref + std::to_string(probId);
+      epec.appendSolution4XL("dat/" + prefix + "solLog", probId, false);
+      // epec.writeSolution(1, "dat/" + prefix + "Sol" +
+      // std::to_string(probId));
+      epec.writeLcpModel("dat/" + prefix + "lcpmodel.lp");
       if (epec.getStatistics().status == Game::EPECsolveStatus::timeLimit) {
         std::ofstream el;
         el.open("dat/" + prefix + "timeLimit.log", ios::app);
@@ -231,9 +235,8 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
         el << "TimeLimit in: " << probId << " (" << tax1 << "," << tax2 << ","
            << suIn << "," << suSl << "," << pp1 << "," << pp2 << ")\n";
         el.close();
-        epec.writeSolution(1, "dat/" + prefix + "Sol" + std::to_string(probId));
-        epec.writeLcpModel("dat/" + prefix + "lcpmodel_" +
-                           std::to_string(probId) + ".lp");
+        epec.writeSolution(1, "dat/" + prefix + "Sol");
+        epec.writeLcpModel("dat/" + prefix + "lcpmodel.lp");
         // epec.writeLcpModel("dat/lcpmodel_" + std::to_string(probId) +
         // ".sol");
       }
@@ -245,16 +248,6 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
         el.close();
       } else
         cout << "Successful solve\n";
-    }
-
-    {
-      for (cci::LeaderVars l = cci::LeaderVars::Followers;
-           l != cci::LeaderVars::End; l = l + 1) {
-        cout << "Country 1:" << l << ": " << epec.getPosition(0, l) << '\n';
-        cout << "Country 2:" << l << ": " << epec.getPosition(1, l) << '\n';
-      }
-			epec.WritePositions("dat/posSol");
-			epec.appendSolution4XL("dat/allPar",0,false);
     }
 
   } catch (const string &s) {
@@ -277,32 +270,14 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
 }
 
 int main() {
-  /*std::ofstream el;
-  el.open("dat/MedPVerrorLog1.log", ios::out);
-  el << "Log file\n";
-  el.close();
-        */
-  // const std::vector<double> tax = {0, 2, 5, 10, 20, 50};
-  const std::vector<double> tax = {0, 20, 50, 100, 250, 500, 700};
-  const std::vector<double> slps = {0.01, 0.1, 0.5, 1, 2, 5};
-  const std::vector<double> ints = {0, 3, 5, 10, 25, 50, 100};
-  const std::vector<double> prodVals = {15, 20, 25, 30, 40};
-  // const std::vector<double> prodVals = {0, 5, 10};
-  // const std::vector<double> prodVals = {50, 150, 500, 1000};
   GRBEnv e;
-  // int count = 0;
-  // for (const double t1 : tax)
-  //   for (const double t2 : tax)
-  //     for (double in : ints)
-  //       for (double sl : slps)
-  //         // for (const double pp1 : prodVals)
-  //         for (const double pp2 : prodVals) {
-  //           count++;
-  //           const double pp1 = pp2;
-  //           solveProb(e, count, pp1, pp2, t1, t2, in, sl);
-  //         }
-  // cout << "count at finish: " << count << '\n';
-  solveProb(e, 1, 1000, 1000, 0, 0, 10, 1e-1);
+  // solveProb(env, probId, pp1, pp2, tax1, tax2, suIn, suSl, pref);
+  // solveProb(e, 2, 100, 100, -1, -1, 10, 1e-1, "Main");
+  // solveProb(e, 3, 50, 50, -1, -1, 10, 1e-2, "Felipe");
+  // solveProb(e, 2, 100, 100, -1, -1, 100, 1e-6, "Fixed");
+
+  // solveProb(e, 0, 100, 100, 0, 0, 0, 1e-4, "BaseCase");
+  solveProb(e, 0, 100, 100, -1, -1, 0, 1e-4, "Tax");
   cout << R"(
 
 #######
