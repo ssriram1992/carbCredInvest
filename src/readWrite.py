@@ -175,14 +175,14 @@ if __name__ == '__main__':
     if len(sys.argv) > 2:
         reoptimize = int(sys.argv[2])
     else:
-        print("No second argument. So reoptimizing...")
-        reoptimize = True
+        print("No second argument. So no reoptimizing...")
+        reoptimize = False
         
     if len(sys.argv) > 3:
         verbose = int(sys.argv[3])
     else:
-        print("No third argument. So printing gurobi logs...")
-        verbose = 1
+        print("No third argument. So not verbose...")
+        verbose = False
     
     # Preliminary data
     countries = ["c1","c2"]

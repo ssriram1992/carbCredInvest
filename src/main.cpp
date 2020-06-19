@@ -38,8 +38,8 @@ template <typename t, typename u> void print(const std::map<t, u> &mm) {
 
 void solveProb(GRBEnv &env, const int probId, const double pp1,
                const double pp2, const double tax1, const double tax2,
-               const double suIn, const double suSl,
-               const std::string pref = "") {
+               const double suIn, const double suSl, const double credSplit = 1,
+               const double cleanMix = 0, const std::string pref = "") {
   // First argument 1 for full enumeration
   using std::array;
   using std::cout;
@@ -90,13 +90,16 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
     prodCost[z] = {0, 0};
     emitCost[z] = 0;
   }
-  prodCost["coal"] = {17.96, 0.01};
+
+	double myfactor = 0.6;
+
+  prodCost["coal"] = {17.96*myfactor, 0.051};
   emitCost["coal"] = 0.760;
-  prodCost["gas"] = {12.88, 0.02};
+  prodCost["gas"] = {11.88*myfactor, 0.036};
   emitCost["gas"] = 0.370;
 
-  invCost["solar"] = {270, 0.07};
-  invCost["wind"] = {300, 0.25};
+  invCost["solar"] = {10.0*myfactor, 0.015};
+  invCost["wind"] = {10.4*myfactor, 0.016};
 
   // Country 1, first Follower
   cci::FollPar<NUM_SCEN> c1F1(0, string("c1F1"));
@@ -164,15 +167,19 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
   Country1Par.follGenNash = false;
   Country2Par.follGenNash = false;
 
-  c1F1.carbonLimitFrac = 0.5 * 2;
-  c1F2.carbonLimitFrac = 0.5 * 2;
+  Country1Par.expCleanMix = cleanMix;
+  Country2Par.expCleanMix = cleanMix;
 
-  c2F1.carbonLimitFrac = 0.5 * 2;
-  c1F2.carbonLimitFrac = 0.5 * 2;
+  c1F1.carbonLimitFrac = credSplit; // 0.5 * 2;
+  c1F2.carbonLimitFrac = credSplit; // 0.5 * 2;
 
-  linQuad DP1s1 = {3690, 0.42};
+  c2F1.carbonLimitFrac = credSplit; // 0.5 * 2;
+  c1F2.carbonLimitFrac = credSplit; // 0.5 * 2;
+
+  // linQuad DP1s1 = {3690, 0.6};
+  linQuad DP1s1 = {200, 0.028};
   // linQuad DP1s2 = {1200, 1};
-  linQuad DP2s1 = {3690, 0.42};
+  linQuad DP2s1 = {200, 0.028};
   // linQuad DP2s2 = {800, 1};
   array<linQuad, NUM_SCEN> DP1 = {DP1s1};
   array<linQuad, NUM_SCEN> DP2 = {DP2s1};
@@ -199,7 +206,7 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
 
 */
   boost::log::core::get()->set_filter(boost::log::trivial::severity >=
-                                      boost::log::trivial::info);
+                                      boost::log::trivial::debug);
   try {
     // if (probId%10 == 0)
     BOOST_LOG_TRIVIAL(fatal)
@@ -271,23 +278,33 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
 
 int main() {
   GRBEnv e;
+  using std::vector;
   // solveProb(env, probId, pp1, pp2, tax1, tax2, suIn, suSl, pref);
   // solveProb(e, 2, 100, 100, -1, -1, 10, 1e-1, "Main");
   // solveProb(e, 3, 50, 50, -1, -1, 10, 1e-2, "Felipe");
   // solveProb(e, 2, 100, 100, -1, -1, 100, 1e-6, "Fixed");
 
-  // solveProb(e, 0, 100, 100, 0, 0, 0, 1e-4, "BaseCase");
-  solveProb(e, 0, 100, 100, -1, -1, 0, 1e-4, "Tax");
-  cout << R"(
+  solveProb(e, 0, 100, 100, 0, 0, 0, 1e-4, 0.5, -0.15, "BaseCase");
+ /*
+  solveProb(e, 3,     // problem Id
+            100, 100, // coutnry production preference
+            82, 82,   // Tax
+            0, 1e-4,  // supply curve
+            0.5,    // Proportion of carbon credits to be given to each follower
+            0.15, // In expectation % of production from clean sources.
+            "Base");
+						*/
 
-#######
-#     #  #    #  ######  #####
-#     #  #    #  #       #    #
-#     #  #    #  #####   #    #
-#     #  #    #  #       #####
-#     #   #  #   #       #   #
-#######    ##    ######  #    #
+  //   cout << R"(
 
-)";
+  // #######
+  // #     #  #    #  ######  #####
+  // #     #  #    #  #       #    #
+  // #     #  #    #  #####   #    #
+  // #     #  #    #  #       #####
+  // #     #   #  #   #       #   #
+  // #######    ##    ######  #    #
+
+  // )";
   return 0;
 }

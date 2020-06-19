@@ -57,6 +57,8 @@ struct LeadPar {
       false}; ///< Whether the followers have the constraint that the total
               ///< carbon consumed by all the followers together is at most the
               ///< credits that their corresponding leader has.
+  double expCleanMix{
+      0}; ///< Minimum percentage of clean energy in the expected case.
 
   double taxCarbon =
       -1; ///< -1 implies tax is a variable. Any positive value fixes tax there
