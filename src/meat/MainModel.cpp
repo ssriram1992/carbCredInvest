@@ -87,12 +87,12 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_obj_leader(
       continue;
     QP_obj.C(Loc.at(LeaderVars::CarbImp),
              this->getPosition(cc, cci::LeaderVars::CarbImp) -
-                 (cc > i ? nThisCountryvars : 0)) = this->comDat.suppInt;
+                 (cc > i ? nThisCountryvars : 0)) = this->comDat.suppSlope;
   }
   BOOST_LOG_TRIVIAL(trace) << "In cci::EPEC::make_obj_leader: Carbon Tradeover";
-  QP_obj.Q = QP_obj.Q / 1000;
-  QP_obj.C = QP_obj.C / 1000;
-  QP_obj.c = QP_obj.c / 1000;
+  QP_obj.Q = QP_obj.Q / 10000;
+  QP_obj.C = QP_obj.C / 10000;
+  QP_obj.c = QP_obj.c / 10000;
 }
 
 template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
@@ -123,7 +123,7 @@ cci::EPEC<n_Dirty, n_Clean, n_Scen>::addCountry(
   arma::sp_mat LeadCons(
       (Params.LeaderParam.consum_limit > 0 ? 1 : 0) +    // Minimum consumption
           n_Clean +                                      // Investment summing
-          1 +                                            // Emission summing
+          2 +                                            // Emission summing
           (Params.LeaderParam.taxCarbon < 0 ? 0 : 2) +   // Fixing the tax?
           (Params.LeaderParam.expCleanMix > 0 ? 1 : 0) + // Clean mix constraint
           1,                                             // Carbon credits >=0
@@ -323,8 +323,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
         const auto pos2 = pos(jj);
         for (unsigned int kk = 0; kk < n_Foll - 1; ++kk) {
           C(pos1, kk * FollVarCount + pos2) =
-              Params.scenProb.at(scen) *
-              (2 * Params.DemandParam.at(scen).second);
+              Params.scenProb.at(scen) * (Params.DemandParam.at(scen).second);
         }
       }
     }
@@ -383,7 +382,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
   // carbonLimitFrac constraint
   B(constrCount, FollCarbBuy) = 1;
   A(constrCount, Loc.at(cci::LeaderVars::CarbImp) - FollVarCount) =
-      -std::min(1.0, Follparam.carbonLimitFrac);
+      -Follparam.carbonLimitFrac;
   constrCount++;
   // CONSTRAINTS Described
   if (constrCount != n_Const)
@@ -461,6 +460,9 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_LeadCons(
         const auto emitCost = Params.FollowerParam.at(ff).emissionCosts.at(pt);
         LeadCons(constrCount, FollVarCount * ff + FollProdDirty +
                                   n_Dirty * scen + ii) = probab * emitCost;
+        LeadCons(constrCount + 1,
+                 FollVarCount * ff + FollProdDirty + n_Dirty * scen + ii) =
+            -1 * probab * emitCost;
       }
       // Clean Producers
       for (unsigned int ii = 0; ii < n_Clean; ++ii) {
@@ -468,6 +470,9 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_LeadCons(
         const auto emitCost = Params.FollowerParam.at(ff).emissionCosts.at(pt);
         LeadCons(constrCount, FollVarCount * ff + FollProdClean +
                                   n_Clean * scen + ii) = probab * emitCost;
+        LeadCons(constrCount + 1,
+                 FollVarCount * ff + FollProdClean + n_Clean * scen + ii) =
+            -1 * probab * emitCost;
         // BOOST_LOG_TRIVIAL(trace) << "make_LL_LeadCons: Clean:" <<
         // FollVarCount * ff + FollProdClean +
         //                           n_Clean * scen + ii;
@@ -475,8 +480,9 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_LeadCons(
     }
   }
   LeadCons(constrCount, Loc.at(LeaderVars::TotEmission)) = -1;
+  LeadCons(constrCount + 1, Loc.at(LeaderVars::TotEmission)) = 1;
 
-  constrCount += 1;
+  constrCount += 2;
   BOOST_LOG_TRIVIAL(trace) << "make_LL_LeadCons: Exp Emission summing over: "
                            << constrCount;
   // CarbBuy summing
