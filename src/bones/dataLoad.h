@@ -125,16 +125,16 @@ enum class LeaderVars {
 
 struct probData {
   std::string prefix = "";
-  int probId;
+  int probId = -1;
 
   double suIn = 0;
   double suSl = 1e-4;
 
-  double c1Pp = 100;
-  double c2Pp = 100;
+  double c1Pp = 50;
+  double c2Pp = 50;
 
-  double c1CreditSplit = 1;
-  double c2CreditSplit = 1;
+  double c1CreditSplit = 1.1;
+  double c2CreditSplit = 1.1;
 
   double c1CleanMix = 0;
   double c2CleanMix = 0;
@@ -142,18 +142,18 @@ struct probData {
   double c1tax = -1;
   double c2tax = -1;
 
-  double prodCoalLin = 0.6 * 17.96;
-  double prodGasLin = 0.6 * 11.88;
+  double prodCoalLin = 42;
+  double prodGasLin = 37;
   double prodSolLin = 0;
   double prodWindLin = 0;
-  double prodCoalQuad = 0.051;
-  double prodGasQuad = 0.036;
+  double prodCoalQuad = 0.0075
+  double prodGasQuad = 0.0095;
   double prodSolQuad = 0;
   double prodWindQuad = 0;
 
-  double invSolLin = 6;
-  double invWindLin = 0.6 * 10.4;
-  double invSolQuad = 0.015;
+  double invSolLin = 4;
+  double invWindLin = 6.5;
+  double invSolQuad = 0.004;
   double invWindQuad = 0.016;
 
   double emitCoal = 0.76;
@@ -163,32 +163,32 @@ struct probData {
 
   double c1f1CapCoal = 500;
   double c1f1CapGas = 800;
-  double c1f1CapSol = 50;
-  double c1f1CapWind = 50;
+  double c1f1CapSol = 227.23;
+  double c1f1CapWind = 428.65
 
   double c2f1CapCoal = 500;
   double c2f1CapGas = 800;
-  double c2f1CapSol = 50;
-  double c2f1CapWind = 50;
+  double c2f1CapSol = 227.23;
+  double c2f1CapWind = 428.65
 
   double c1f2CapCoal = 500;
   double c1f2CapGas = 800;
-  double c1f2CapSol = 50;
-  double c1f2CapWind = 50;
+  double c1f2CapSol = 227.23;
+  double c1f2CapWind = 428.65
 
   double c2f2CapCoal = 500;
   double c2f2CapGas = 800;
-  double c2f2CapSol = 50;
-  double c2f2CapWind = 50;
+  double c2f2CapSol = 227.23;
+  double c2f2CapWind = 428.65
 
   bool c1GenNash = 0;
   bool c2GenNash = 0;
 
   double c1demInt = 200;
-  double c1demSl = 0.028;
+  double c1demSl = 0.026;
 
   double c2demInt = 200;
-  double c2demSl = 0.028;
+  double c2demSl = 0.026;
 
   double c1emitCost = 0;
   double c2emitCost = 0;
