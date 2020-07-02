@@ -208,3 +208,180 @@ cci::FollPar<num_scen> operator+(const cci::FollPar<num_scen> &F1,
 
   return cci::FollPar<num_scen>(cq, cl, cap, ec, nm);
 }
+
+void cci::writeProbData(const std::string filename, const cci::probData &pd) {
+  std::ofstream ff;
+  ff.open(filename, std::ios::out);
+  ff << "prefix  " << pd.prefix << '\n';
+  ff << "probId  " << pd.probId << '\n';
+  ff << "suIn  " << pd.suIn << '\n';
+  ff << "suSl  " << pd.suSl << '\n';
+  ff << "c1Pp  " << pd.c1Pp << '\n';
+  ff << "c2Pp  " << pd.c2Pp << '\n';
+  ff << "c1CreditSplit  " << pd.c1CreditSplit << '\n';
+  ff << "c2CreditSplit  " << pd.c2CreditSplit << '\n';
+  ff << "c1CleanMix  " << pd.c1CleanMix << '\n';
+  ff << "c2CleanMix  " << pd.c2CleanMix << '\n';
+  ff << "c1tax  " << pd.c1tax << '\n';
+  ff << "c2tax  " << pd.c2tax << '\n';
+  ff << "prodCoalLin  " << pd.prodCoalLin << '\n';
+  ff << "prodGasLin  " << pd.prodGasLin << '\n';
+  ff << "prodSolLin  " << pd.prodSolLin << '\n';
+  ff << "prodWindLin  " << pd.prodWindLin << '\n';
+  ff << "prodCoalQuad  " << pd.prodCoalQuad << '\n';
+  ff << "prodGasQuad  " << pd.prodGasQuad << '\n';
+  ff << "prodSolQuad  " << pd.prodSolQuad << '\n';
+  ff << "prodWindQuad  " << pd.prodWindQuad << '\n';
+  ff << "invSolLin  " << pd.invSolLin << '\n';
+  ff << "invWindLin  " << pd.invWindLin << '\n';
+  ff << "invSolQuad  " << pd.invSolQuad << '\n';
+  ff << "invWindQuad  " << pd.invWindQuad << '\n';
+  ff << "emitCoal  " << pd.emitCoal << '\n';
+  ff << "emitGas  " << pd.emitGas << '\n';
+  ff << "emitSol  " << pd.emitSol << '\n';
+  ff << "emitWind  " << pd.emitWind << '\n';
+  ff << "c1f1CapCoal  " << pd.c1f1CapCoal << '\n';
+  ff << "c1f1CapGas  " << pd.c1f1CapGas << '\n';
+  ff << "c1f1CapSol  " << pd.c1f1CapSol << '\n';
+  ff << "c1f1CapWind  " << pd.c1f1CapWind << '\n';
+  ff << "c2f1CapCoal  " << pd.c2f1CapCoal << '\n';
+  ff << "c2f1CapGas  " << pd.c2f1CapGas << '\n';
+  ff << "c2f1CapSol  " << pd.c2f1CapSol << '\n';
+  ff << "c2f1CapWind  " << pd.c2f1CapWind << '\n';
+  ff << "c1f2CapCoal  " << pd.c1f2CapCoal << '\n';
+  ff << "c1f2CapGas  " << pd.c1f2CapGas << '\n';
+  ff << "c1f2CapSol  " << pd.c1f2CapSol << '\n';
+  ff << "c1f2CapWind  " << pd.c1f2CapWind << '\n';
+  ff << "c2f2CapCoal  " << pd.c2f2CapCoal << '\n';
+  ff << "c2f2CapGas  " << pd.c2f2CapGas << '\n';
+  ff << "c2f2CapSol  " << pd.c2f2CapSol << '\n';
+  ff << "c2f2CapWind  " << pd.c2f2CapWind << '\n';
+  ff << "c1GenNash  " << pd.c1GenNash << '\n';
+  ff << "c2GenNash  " << pd.c2GenNash << '\n';
+  ff << "c1demInt  " << pd.c1demInt << '\n';
+  ff << "c1demSl  " << pd.c1demSl << '\n';
+  ff << "c2demInt  " << pd.c2demInt << '\n';
+  ff << "c2demSl  " << pd.c2demSl << '\n';
+  ff << "c1emitCost  " << pd.c1emitCost << '\n';
+  ff << "c2emitCost  " << pd.c2emitCost << '\n';
+  ff.close();
+}
+
+cci::probData cci::readProbData(const std::string filename) {
+  cci::probData pd;
+  std::ifstream ff;
+  ff.open(filename, std::ios::in);
+  auto readLine = [&pd](std::ifstream &ff, const std::string name) {
+    if (name == "prefix")
+      ff >> pd.prefix;
+    if (name == "probId")
+      ff >> pd.probId;
+    if (name == "suIn")
+      ff >> pd.suIn;
+    if (name == "suSl")
+      ff >> pd.suSl;
+    if (name == "c1Pp")
+      ff >> pd.c1Pp;
+    if (name == "c2Pp")
+      ff >> pd.c2Pp;
+    if (name == "c1CreditSplit")
+      ff >> pd.c1CreditSplit;
+    if (name == "c2CreditSplit")
+      ff >> pd.c2CreditSplit;
+    if (name == "c1CleanMix")
+      ff >> pd.c1CleanMix;
+    if (name == "c2CleanMix")
+      ff >> pd.c2CleanMix;
+    if (name == "c1tax")
+      ff >> pd.c1tax;
+    if (name == "c2tax")
+      ff >> pd.c2tax;
+    if (name == "prodCoalLin")
+      ff >> pd.prodCoalLin;
+    if (name == "prodGasLin")
+      ff >> pd.prodGasLin;
+    if (name == "prodSolLin")
+      ff >> pd.prodSolLin;
+    if (name == "prodWindLin")
+      ff >> pd.prodWindLin;
+    if (name == "prodCoalQuad")
+      ff >> pd.prodCoalQuad;
+    if (name == "prodGasQuad")
+      ff >> pd.prodGasQuad;
+    if (name == "prodSolQuad")
+      ff >> pd.prodSolQuad;
+    if (name == "prodWindQuad")
+      ff >> pd.prodWindQuad;
+    if (name == "invSolLin")
+      ff >> pd.invSolLin;
+    if (name == "invWindLin")
+      ff >> pd.invWindLin;
+    if (name == "invSolQuad")
+      ff >> pd.invSolQuad;
+    if (name == "invWindQuad")
+      ff >> pd.invWindQuad;
+    if (name == "emitCoal")
+      ff >> pd.emitCoal;
+    if (name == "emitGas")
+      ff >> pd.emitGas;
+    if (name == "emitSol")
+      ff >> pd.emitSol;
+    if (name == "emitWind")
+      ff >> pd.emitWind;
+    if (name == "c1f1CapCoal")
+      ff >> pd.c1f1CapCoal;
+    if (name == "c1f1CapGas")
+      ff >> pd.c1f1CapGas;
+    if (name == "c1f1CapSol")
+      ff >> pd.c1f1CapSol;
+    if (name == "c1f1CapWind")
+      ff >> pd.c1f1CapWind;
+    if (name == "c2f1CapCoal")
+      ff >> pd.c2f1CapCoal;
+    if (name == "c2f1CapGas")
+      ff >> pd.c2f1CapGas;
+    if (name == "c2f1CapSol")
+      ff >> pd.c2f1CapSol;
+    if (name == "c2f1CapWind")
+      ff >> pd.c2f1CapWind;
+    if (name == "c1f2CapCoal")
+      ff >> pd.c1f2CapCoal;
+    if (name == "c1f2CapGas")
+      ff >> pd.c1f2CapGas;
+    if (name == "c1f2CapSol")
+      ff >> pd.c1f2CapSol;
+    if (name == "c1f2CapWind")
+      ff >> pd.c1f2CapWind;
+    if (name == "c2f2CapCoal")
+      ff >> pd.c2f2CapCoal;
+    if (name == "c2f2CapGas")
+      ff >> pd.c2f2CapGas;
+    if (name == "c2f2CapSol")
+      ff >> pd.c2f2CapSol;
+    if (name == "c2f2CapWind")
+      ff >> pd.c2f2CapWind;
+    if (name == "c1GenNash")
+      ff >> pd.c1GenNash;
+    if (name == "c2GenNash")
+      ff >> pd.c2GenNash;
+    if (name == "c1demInt")
+      ff >> pd.c1demInt;
+    if (name == "c1demSl")
+      ff >> pd.c1demSl;
+    if (name == "c2demInt")
+      ff >> pd.c2demInt;
+    if (name == "c2demSl")
+      ff >> pd.c2demSl;
+    if (name == "c1emitCost")
+      ff >> pd.c1emitCost;
+    if (name == "c2emitCost")
+      ff >> pd.c2emitCost;
+  };
+  while (!ff.eof()) {
+    std::string name;
+    ff >> name;
+    readLine(ff, name);
+  }
+  ff.close();
+  return pd;
+}

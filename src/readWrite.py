@@ -103,8 +103,12 @@ class EPECio:
             fo.write(cc+"---"+ff+"\n")
             fo.write(formatIt("Carbon Limit",self.var[(cc,ff,"CarbBuy")]))
             fo.write("\nInvestments by "+ff+"\n")
-            for gg in ["solar","wind"]:
+            for gg in self.clean:
                 fo.write(formatIt("Investment in "+gg,self.var[(cc,ff,"Inv",gg)]))
+            fo.write("\n")
+            for ee in self.energy:
+                ans = self.param[(cc,ff,"Cap",ee)] + (self.var[(cc,ff,"Inv",ee)] if ee in self.clean else 0)
+                fo.write(formatIt("Total Capacity in "+ee, ans))
             fo.write("\n")
             # Scenario wise production
             expProd = {ee:0 for ee in self.energy}
@@ -130,6 +134,7 @@ class EPECio:
         with open(filename,"a") as fo:
             fo.write(cc + ":\n")
             fo.write(formatIt("Carbon Import:",self.var[(cc,"CarbImp")]))
+            fo.write(formatIt("Total Emission:",self.var[(cc,"TotEmission")]))
             fo.write(formatIt("Carbon Tax:",self.var[(cc,"CarbTax")]))
         Prod = dict()
         for ff in self.producers[cc]:
@@ -137,9 +142,13 @@ class EPECio:
         with open(filename,"a") as fo:
             for ee in self.energy:
                 fo.write(formatIt("Country total "+ee+": ",sum(Prod[ff][ee] for ff in self.producers[cc])))
-            fo.write(formatIt("Country Total Prodn: ",sum(Prod[ff][ee] for ff in self.producers[cc]
-                                                          for ee in self.energy
-                                                         )))
+            production = sum(Prod[ff][ee] for ff in self.producers[cc] for ee in self.energy)
+            fo.write(formatIt("Country Total Prodn: ", production))
+            demInt = sum([self.param[cc,'DemInt','xi'+str(xi)] for xi in range(self.n_Scen)])/self.n_Scen
+            demSl = sum([self.param[cc,'DemSlope','xi'+str(xi)] for xi in range(self.n_Scen)])/self.n_Scen
+            # fo.write(formatIt("demInt: ", demInt))
+            # fo.write(formatIt("demSlp: ", demSl))
+            fo.write(formatIt("Energy price Estimate: ", demInt - demSl*production))
 
     def writeAll(self,filename):
         with open(filename,"w") as fo:
@@ -170,7 +179,7 @@ if __name__ == '__main__':
     positions = "./dat/"+prefix+"solLog.dat"
     lpfile = "./dat/"+prefix+"lcpmodel.lp"
     unmod = "./dat/"+prefix+"unMod.txt"
-    mod = "./dat/"+prefix+"mod.txt"
+    mod = "./dat/"+prefix+"mod"
     
     if len(sys.argv) > 2:
         reoptimize = int(sys.argv[2])
@@ -201,23 +210,33 @@ if __name__ == '__main__':
         # Solving the gurobi model
         M = gp.read(lpfile)
         M.params.LogToConsole = verbose
-        expr = M.getObjective()
+        expr = 0 # M.getObjective()
         expr += gp.quicksum([getGurVar(M, epec.locs, (cc,"CarbImp")) for cc in countries])*0.1
+        M.params.SolFiles = "./dat/tempSol"
         M.setObjective(expr)
+        print("Using the fact that the data is symmetric")
+        ci1 = getGurVar(M, epec.locs, ('c1','CarbImp'))
+        ci2 = getGurVar(M, epec.locs, ('c2','CarbImp'))
+        M.addConstr(ci1==ci2)
+        M.update()
         M.optimize()
         M.write("./dat/_tempSol.sol")
 
         # Getting the solution from the solved model
-        newVars = dict()
-        for kk in epec.locs.keys():
-            vv = epec.locs[kk]
-            newVars[kk] = getSolFromFile("x_"+str(vv), "./dat/_tempSol.sol")
-        epec.var = newVars
         import os
-        os.remove("./dat/_tempSol.sol")
-
-        # Writing the output
-        epec.writeAll(mod)
+        for sol in range (M.getAttr("SolCount")):
+          newVars = dict()
+          for kk in epec.locs.keys():
+              vv = epec.locs[kk]
+              newVars[kk] = getSolFromFile("x_"+str(vv),"./dat/tempSol_"+str(sol)+".sol")
+          epec.var = newVars
+          # Writing the output
+          # os.remove("./dat/tempSol_"+str(sol)+".sol") 
+          epec.writeAll(mod+str(sol)+".txt")
+        # os.remove("./dat/_tempSol.sol") 
+        # Writing the best output
+        epec.writeAll(mod+".txt")
+        print((M.getAttr("SolCount")), "solutions found and written to files")
     print("Task completed successfully")
 
 

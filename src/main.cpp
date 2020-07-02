@@ -36,10 +36,7 @@ template <typename t, typename u> void print(const std::map<t, u> &mm) {
     std::cout << x.first << "\t-\t" << x.second << "\n";
 }
 
-void solveProb(GRBEnv &env, const int probId, const double pp1,
-               const double pp2, const double tax1, const double tax2,
-               const double suIn, const double suSl, const double credSplit = 1,
-               const double cleanMix = 0, const std::string pref = "") {
+void solveProb(GRBEnv *env, const cci::probData pd, bool findPne) {
   // First argument 1 for full enumeration
   using std::array;
   using std::cout;
@@ -79,27 +76,25 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
   map<string, double> s1 = {{string("wind"), 0.348}, {string("solar"), 0.245}};
   // map<string, double> s2 = {{string("wind"), 0.6}, {string("solar"), 0.4}};
   const array<map<string, double>, NUM_SCEN> capFac1 = {s1};
-  const array<map<string, double>, NUM_SCEN> capFac2 = {s1};
+  // const array<map<string, double>, NUM_SCEN> capFac2 = {s1};
 
   // Constant costs across producers
   map<string, linQuad> prodCost;
   map<string, linQuad> invCost;
   map<string, double> emitCost;
-  // zERO production costs for clean energy
-  for (const auto z : cleanEnergy) {
-    prodCost[z] = {0, 0};
-    emitCost[z] = 0;
-  }
 
-	double myfactor = 0.6;
+  prodCost["coal"] = {pd.prodCoalLin, pd.prodCoalQuad};
+  prodCost["gas"] = {pd.prodGasLin, pd.prodGasQuad};
+  prodCost["solar"] = {pd.prodSolLin, pd.prodSolQuad};
+  prodCost["wind"] = {pd.prodWindLin, pd.prodWindQuad};
 
-  prodCost["coal"] = {17.96*myfactor, 0.051};
-  emitCost["coal"] = 0.760;
-  prodCost["gas"] = {11.88*myfactor, 0.036};
-  emitCost["gas"] = 0.370;
+  emitCost["coal"] = pd.emitCoal;
+  emitCost["gas"] = pd.emitGas;
+  emitCost["solar"] = pd.emitSol;
+  emitCost["wind"] = pd.emitWind;
 
-  invCost["solar"] = {10.0*myfactor, 0.015};
-  invCost["wind"] = {10.4*myfactor, 0.016};
+  invCost["solar"] = {pd.invSolLin, pd.invSolQuad};
+  invCost["wind"] = {pd.invWindLin, pd.invWindQuad};
 
   // Country 1, first Follower
   cci::FollPar<NUM_SCEN> c1F1(0, string("c1F1"));
@@ -108,8 +103,9 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
   c1F1.investmentCosts = invCost;
   c1F1.emissionCosts = emitCost;
   c1F1.renewCapAdjust = capFac1;
-  c1F1.capacities =
-      makeMap<string, double>(energy, vector<double>{500, 800, 50, 50});
+  c1F1.capacities = makeMap<string, double>(
+      energy, vector<double>{pd.c1f1CapCoal, pd.c1f1CapGas, pd.c1f1CapSol,
+                             pd.c1f1CapWind});
 
   // Country 1, second follower
   cci::FollPar<NUM_SCEN> c1F2(0, string("c1F2"));
@@ -118,8 +114,9 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
   c1F2.investmentCosts = invCost;
   c1F2.emissionCosts = emitCost;
   c1F2.renewCapAdjust = capFac1;
-  c1F2.capacities =
-      makeMap<string, double>(energy, vector<double>{500, 800, 50, 50});
+  c1F2.capacities = makeMap<string, double>(
+      energy, vector<double>{pd.c1f2CapCoal, pd.c1f2CapGas, pd.c1f2CapSol,
+                             pd.c1f2CapWind});
 
   // Country 2, first Follower
   cci::FollPar<NUM_SCEN> c2F1(0, string("c2F1"));
@@ -127,9 +124,10 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
   c2F1.productionCosts = prodCost;
   c2F1.investmentCosts = invCost;
   c2F1.emissionCosts = emitCost;
-  c2F1.renewCapAdjust = capFac2;
-  c2F1.capacities =
-      makeMap<string, double>(energy, vector<double>{500, 800, 50, 50});
+  c2F1.renewCapAdjust = capFac1;
+  c2F1.capacities = makeMap<string, double>(
+      energy, vector<double>{pd.c2f1CapCoal, pd.c2f1CapGas, pd.c2f1CapSol,
+                             pd.c2f1CapWind});
   // c2F1.investmentCosts["wind"].first = 1;
   // c2F1.investmentCosts["solar"].first = 1;
 
@@ -139,47 +137,52 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
   c2F2.productionCosts = prodCost;
   c2F2.investmentCosts = invCost;
   c2F2.emissionCosts = emitCost;
-  c2F2.renewCapAdjust = capFac2;
+  c2F2.renewCapAdjust = capFac1;
   // c2F2.investmentCosts["wind"].first = 8;
   // c2F2.investmentCosts["solar"].first = 3;
-  c2F2.capacities =
-      makeMap<string, double>(energy, vector<double>{500, 800, 50, 50});
+  c2F2.capacities = makeMap<string, double>(
+      energy, vector<double>{pd.c2f2CapCoal, pd.c2f2CapGas, pd.c2f2CapSol,
+                             pd.c2f2CapWind});
 
   // Country 1 Leader Par
-  cci::LeadPar Country1Par(0, // Min reqd consum
-                           0, // Carbon credit
-                           0, // emitVals
-                           0, 0, makeMap(cleanEnergy, vector<double>{0, 0}),
-                           makeMap(cleanEnergy, vector<double>{0, 0}),
-                           pp1, // prodnVal
-                           tax1 // Tax
+  cci::LeadPar Country1Par(
+      0,                                          // Min reqd consum
+      0,                                          // Carbon credit
+      pd.c1emitCost,                              // emitVals
+      0, 0,                                       // emitQuad, emitCross
+      makeMap(cleanEnergy, vector<double>{0, 0}), // cleanInvVal
+      makeMap(cleanEnergy, vector<double>{0, 0}), // cleanInvCrossVal
+      pd.c1Pp,                                    // prodnVal
+      pd.c1tax                                    // Tax
   );
 
-  cci::LeadPar Country2Par(0, // Min reqd consum
-                           0, // Carbon credit
-                           0, // emitVals
-                           0, 0, makeMap(cleanEnergy, vector<double>{0, 0}),
-                           makeMap(cleanEnergy, vector<double>{0, 0}),
-                           pp2, // prodnVal
-                           tax2 // Tax
+  cci::LeadPar Country2Par(
+      0,                                          // Min reqd consum
+      0,                                          // Carbon credit
+      pd.c2emitCost,                              // emitVals
+      0, 0,                                       // emitQuad, emitCross
+      makeMap(cleanEnergy, vector<double>{0, 0}), // cleanInvVal
+      makeMap(cleanEnergy, vector<double>{0, 0}), // cleanInvCrossVal
+      pd.c2Pp,                                    // prodnVal
+      pd.c2tax                                    // Tax
   );
 
-  Country1Par.follGenNash = false;
-  Country2Par.follGenNash = false;
+  Country1Par.follGenNash = pd.c1GenNash;
+  Country2Par.follGenNash = pd.c2GenNash;
 
-  Country1Par.expCleanMix = cleanMix;
-  Country2Par.expCleanMix = cleanMix;
+  Country1Par.expCleanMix = pd.c1CleanMix;
+  Country2Par.expCleanMix = pd.c2CleanMix;
 
-  c1F1.carbonLimitFrac = credSplit; // 0.5 * 2;
-  c1F2.carbonLimitFrac = credSplit; // 0.5 * 2;
+  c1F1.carbonLimitFrac = pd.c1CreditSplit; // 0.5 * 2;
+  c1F2.carbonLimitFrac = pd.c1CreditSplit; // 0.5 * 2;
 
-  c2F1.carbonLimitFrac = credSplit; // 0.5 * 2;
-  c1F2.carbonLimitFrac = credSplit; // 0.5 * 2;
+  c2F1.carbonLimitFrac = pd.c1CreditSplit; // 0.5 * 2;
+  c1F2.carbonLimitFrac = pd.c1CreditSplit; // 0.5 * 2;
 
   // linQuad DP1s1 = {3690, 0.6};
-  linQuad DP1s1 = {200, 0.028};
+  linQuad DP1s1 = {pd.c1demInt, pd.c1demSl};
   // linQuad DP1s2 = {1200, 1};
-  linQuad DP2s1 = {200, 0.028};
+  linQuad DP2s1 = {pd.c2demInt, pd.c2demSl};
   // linQuad DP2s2 = {800, 1};
   array<linQuad, NUM_SCEN> DP1 = {DP1s1};
   array<linQuad, NUM_SCEN> DP2 = {DP2s1};
@@ -193,7 +196,7 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
       array<double, NUM_SCEN>{1.0 / NUM_SCEN} // Probability of the scenarios
   );
 
-  cci::commonData supplyData(suIn, suSl);
+  cci::commonData supplyData(pd.suIn, pd.suSl);
 
   /*
 #     #
@@ -209,22 +212,34 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
                                       boost::log::trivial::debug);
   try {
     // if (probId%10 == 0)
-    BOOST_LOG_TRIVIAL(fatal)
-        << "Running: " << pref << probId << "(tax1, tax2, suIn, suSl, pp1, pp2)"
-        << " (" << tax1 << "," << tax2 << "," << suIn << "," << suSl << " "
-        << pp1 << "," << pp2 << ") of 10290";
-    cci::EPEC<NUM_DIRTY, NUM_CLEAN, NUM_SCEN> epec(&env, dirtyEnergy,
+    std::string pref = pd.prefix;
+    auto probId = pd.probId;
+    cci::EPEC<NUM_DIRTY, NUM_CLEAN, NUM_SCEN> epec(env, dirtyEnergy,
                                                    cleanEnergy, supplyData);
 
     epec.addCountry(c1).addCountry(c2);
     epec.finalize();
     epec.setAlgorithm(Game::EPECalgorithm::innerApproximation);
-    // epec.setPureNE(true);
+    epec.setPureNE(findPne);
     epec.setNumThreads(2);
     // epec.setAggressiveness(1);
     epec.setTimeLimit(60);
     epec.setAddPolyMethod(Game::EPECAddPolyMethod::reverse_sequential);
     epec.findNashEq();
+
+    { // Printing probability position
+      for (int ii = 0; ii < 2; ii++) {
+        cout << "Country: " << ii << '\n';
+        unsigned int n_lead = epec.getNPoly_Lead(ii);
+        cout << "Number of polyhedra: " << n_lead << '\n';
+        for (unsigned int jj = 0; jj < n_lead; jj++)
+          cout << "Leader " << ii << " poly " << jj
+               << " probability posn: " << epec.getPosition_Probab(ii, jj)
+               << " with a value " << epec.getVal_Probab(ii, jj) << '\n';
+      }
+      std::string prefix = pref + std::to_string(probId);
+      epec.writeMNEposns("dat/" + prefix + "MNE", 1);
+    }
     // epec.writeSolution(1, "dat/Sol" + std::to_string(probId));
     // epec.writeLcpModel("dat/lcpmodel_" + std::to_string(probId) + ".lp");
     // epec.writeLcpModel("dat/lcpmodel_" + std::to_string(probId) + ".sol");
@@ -239,8 +254,6 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
         std::ofstream el;
         el.open("dat/" + prefix + "timeLimit.log", ios::app);
         cout << "Time Limit reached \n";
-        el << "TimeLimit in: " << probId << " (" << tax1 << "," << tax2 << ","
-           << suIn << "," << suSl << "," << pp1 << "," << pp2 << ")\n";
         el.close();
         epec.writeSolution(1, "dat/" + prefix + "Sol");
         epec.writeLcpModel("dat/" + prefix + "lcpmodel.lp");
@@ -250,50 +263,56 @@ void solveProb(GRBEnv &env, const int probId, const double pp1,
       if (epec.getStatistics().status != Game::EPECsolveStatus::nashEqFound) {
         std::ofstream el;
         el.open("dat/" + prefix + "errorLog.log", ios::app);
-        el << "Error in: " << probId << " (" << tax1 << "," << tax2 << ","
-           << suIn << "," << suSl << "," << pp1 << "," << pp2 << ")\n";
         el.close();
       } else
         cout << "Successful solve\n";
     }
 
-  } catch (const string &s) {
-    cerr << s << "\nOops\n";
-    std::ofstream el;
-    el.open("dat/MedPVerrorLog.log", ios::app);
-    el << "Error in: " << probId << " (" << tax1 << "," << tax2 << "," << suIn
-       << "," << suSl << "," << pp1 << "," << pp2 << ")\n";
-    el.close();
-    throw;
-  } catch (const GRBException &e) {
-    cerr << "GRBException: " << e.getMessage() << '\n';
-    std::ofstream el;
-    el.open("dat/MedPVerrorLog.log", ios::app);
-    el << "Error in: " << probId << " (" << tax1 << "," << tax2 << "," << suIn
-       << "," << suSl << "," << pp1 << "," << pp2 << ")\n";
-    el.close();
-    throw;
+  } catch (...) {
+    BOOST_LOG_TRIVIAL(fatal) << "ERRROR!!!!";
   }
 }
 
-int main() {
+int main(int argc, char *argv[]) {
   GRBEnv e;
-  using std::vector;
-  // solveProb(env, probId, pp1, pp2, tax1, tax2, suIn, suSl, pref);
-  // solveProb(e, 2, 100, 100, -1, -1, 10, 1e-1, "Main");
-  // solveProb(e, 3, 50, 50, -1, -1, 10, 1e-2, "Felipe");
-  // solveProb(e, 2, 100, 100, -1, -1, 100, 1e-6, "Fixed");
+  std::string filename;
+  if (argc > 1)
+    filename = std::string(argv[1]);
+  else {
+    std::cout << R"(
+No input file given. Usage:
+carbCredInv_PNE <filename.dat> <findPureNE=0> <reWriteInputFile=0>
+Enter 1 to continue with default file. 0 to abort.
+)";
+    int choice;
+    std::cin >> choice;
+    if (choice == 1)
+      filename = std::string("src/pd.dat");
+    else
+      return 0;
+  }
 
-  solveProb(e, 0, 100, 100, 0, 0, 0, 1e-4, 0.5, -0.15, "BaseCase");
- /*
-  solveProb(e, 3,     // problem Id
-            100, 100, // coutnry production preference
-            82, 82,   // Tax
-            0, 1e-4,  // supply curve
-            0.5,    // Proportion of carbon credits to be given to each follower
-            0.15, // In expectation % of production from clean sources.
-            "Base");
-						*/
+  bool findPne{false};
+  if (argc > 2)
+    if (std::string(argv[2]) == std::string("1"))
+      findPne = true;
+
+  const cci::probData pd = cci::readProbData(filename);
+  if (argc > 3)
+    if (std::string(argv[3]) == std::string("1"))
+      cci::writeProbData(filename, pd);
+
+  solveProb(&e, pd, findPne);
+
+  // solveProb(e, 0, 100, 100, 0, 0, 0, 1e-4, 0.5, -0.15, "BaseCase");
+  /*
+   solveProb(e, 3,     // problem Id
+             100, 100, // coutnry production preference
+             82, 82,   // Tax
+             0, 1e-4,  // supply curve
+             0.5,    // Proportion of carbon credits to be given to each
+   follower 0.15, // In expectation % of production from clean sources. "Base");
+                                                 */
 
   //   cout << R"(
 

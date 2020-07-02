@@ -171,6 +171,8 @@ public: // Attributes
   void appendSolution4XL(const std::string filename, int problemID,
                          bool append = true) const;
 
+  void writeMNEposns(const std::string filename, int problemID) const;
+
   void readSolutionJSON(const std::string filename);
 
   void writeSolutionJSON(std::string filename, const arma::vec x,

@@ -1,3 +1,4 @@
+#pragma once
 #include "../carbCredInv.h"
 
 template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
@@ -292,6 +293,111 @@ std::ostream &cci::operator<<(std::ostream &ost, const cci::FollPar<n_Scen> P) {
 }
 
 template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
+void cci::EPEC<n_Dirty, n_Clean, n_Scen>::writeMNEposns(
+    const std::string filename, int problemID) const {
+  using std::string;
+  using std::stringstream;
+  using std::to_string;
+  using std::vector;
+
+  stringstream header("");
+  stringstream positions("");
+  for (unsigned int cc = 0; cc < this->getNcountries(); ++cc) {
+    const auto &Params = this->AllLeadPars.at(cc);
+    auto Locs = this->Locations[cc];
+    string cName = Params.name + "_";
+    vector<unsigned int> ccPolys = this->mixedStratPoly(cc);
+    BOOST_LOG_TRIVIAL(trace) << "Polyhedra for country " << cc;
+    // std::for_each(std::begin(ccPolys), std::end(ccPolys),
+                  // [](unsigned int ii) { std::cout << ii << " "; });
+    // std::cout << '\n';
+    header << cName << "nPoly ";
+    positions << ccPolys.size() << " ";
+    if (ccPolys.size() == 1)
+      continue;
+    for (unsigned int poly = 0; poly < ccPolys.size(); poly++) {
+      string pName = cName + "poly" + to_string(poly) + "_";
+      header << pName << "probab ";
+      positions << this->getPosition_Probab(cc, ccPolys[poly]) << " ";
+      /*
+
+####    ####   #####      #    ######  #####
+#    #  #    #  #    #     #    #       #    #
+#       #    #  #    #     #    #####   #    #
+#       #    #  #####      #    #       #    #
+#    #  #    #  #          #    #       #    #
+####    ####   #          #    ######  #####
+
+      */
+      for (unsigned int ff = 0; ff < Params.n_followers; ++ff) {
+        string ffName = string(pName + Params.FollowerParam.at(ff).name +
+                               "_"); // "c0_poly0_p0_"
+                                     // FollInv
+        BOOST_LOG_TRIVIAL(debug) << poly;
+        for (int ii = 0; ii < n_Clean; ++ii) {
+          string vName = ffName + "Inv_"; // "c0_poly0_p0_Inv_"
+          const unsigned int posn = FollVarCount * ff + ii;
+          header << vName + this->cleanEnergy.at(ii) << " ";
+          positions << this->getPosition_LeadFollPoly(cc, posn, poly)
+                    // this->getPosition(cc, LeaderVars::Followers) + posn
+                    << " ";
+        }
+        // FolProdDirty
+        for (int ii = 0; ii < n_Dirty; ++ii) {
+          for (int scen = 0; scen < n_Scen; ++scen) {
+            string vName = ffName + "Prod_"; // "c0_poly0_p0_Prod_"
+            const unsigned int posn =
+                FollVarCount * ff + FollProdDirty + scen * n_Dirty + ii;
+            header << vName + this->dirtyEnergy.at(ii) << "_xi" << scen << " ";
+            positions << this->getPosition_LeadFollPoly(cc, posn, poly)
+                      // this->getPosition(cc, LeaderVars::Followers) + posn
+                      << " ";
+          }
+        }
+        // FolProdClean
+        for (int ii = 0; ii < n_Clean; ++ii) {
+          for (int scen = 0; scen < n_Scen; ++scen) {
+            string vName = ffName + "Prod_"; // "c0_poly0_p0_Prod_"
+            const unsigned int posn =
+                FollVarCount * ff + FollProdClean + scen * n_Clean + ii;
+            header << vName + this->cleanEnergy.at(ii) << "_xi" << scen << " ";
+            positions << this->getPosition_LeadFollPoly(cc, posn, poly)
+                      // positions << this->getPosition(cc,
+                      // LeaderVars::Followers) + posn
+                      << " ";
+          }
+        }
+        // FollCarbBuy
+        const unsigned int posn = FollVarCount * ff + FollCarbBuy;
+        header << ffName + "CarbBuy ";
+        positions << this->getPosition_LeadFollPoly(cc, posn, poly) << " ";
+        // positions << this->getPosition(cc, LeaderVars::Followers) + posn << "
+        // ";
+      }
+      unsigned int posn;
+      // CarbImp
+      header << pName + "CarbImp ";
+      posn = Locs[LeaderVars::CarbImp];
+      positions << this->getPosition_LeadFollPoly(cc, posn, poly) << " ";
+      // CarbTax
+      header << pName + "CarbTax ";
+      posn = Locs[LeaderVars::CarbTax];
+      positions << this->getPosition_LeadFollPoly(cc, posn, poly) << " ";
+      // TotEmission
+      header << pName + "TotEmission ";
+      posn = Locs[LeaderVars::TotEmission];
+      positions << this->getPosition_LeadFollPoly(cc, posn, poly) << " ";
+    }
+  }
+
+  // Writing to file
+  std::ofstream file;
+  file.open(filename + ".dat", ios::out);
+  BOOST_LOG_TRIVIAL(trace) << problemID << '\n';
+  file << header.str() << '\n' << positions.str() << '\n';
+}
+
+template <unsigned int n_Dirty, unsigned int n_Clean, unsigned int n_Scen>
 void cci::EPEC<n_Dirty, n_Clean, n_Scen>::appendSolution4XL(
     const std::string filename, int problemID, bool append) const {
 
@@ -301,8 +407,6 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::appendSolution4XL(
 
   const arma::vec x = this->getx();
 
-  std::ofstream file;
-  file.open(filename + ".dat", append ? ios::app : ios::out);
   stringstream header("");
   stringstream positions("");
   stringstream content("");
@@ -487,6 +591,9 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::appendSolution4XL(
       positions << posn << " ";
     content << x.at(posn) << " ";
   }
+  // Writing to file
+  std::ofstream file;
+  file.open(filename + ".dat", append ? ios::app : ios::out);
   if (!append) {
     file << header.str() << '\n'
          << positions.str() << '\n'

@@ -23,3 +23,5 @@ void decreaseVal(LeadLocs &L, const LeaderVars start, const unsigned int val,
 void init(LeadLocs &L);
 
 LeaderVars operator+(cci::LeaderVars a, int b);
+void writeProbData(const std::string filename, const cci::probData &pd);
+cci::probData readProbData(const std::string filename);
