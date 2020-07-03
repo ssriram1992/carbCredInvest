@@ -12,6 +12,36 @@ def build_tupledict(array,iterator):
         ans[it] = val
     return ans
 
+def addComplementarity(model, vv, ee, name = '', triggerUpdate = False):
+    """
+    Adds the complementarity constraint  0 <= vv _|_ ee >= 0
+    
+    PARAMETERS
+    ----------
+    model:
+        GRBModel to which the complementarity constraint is to be added. 
+    vv:
+        GRBVar i.e., the variable that is in the complementarity constraint
+    ee:
+        GRBExpr i.e., the equation that is in the complementarity constraint 
+    name:
+        string. Name for the complementarity constraint. If empty, default name will be used
+    triggerUpdate:
+        bool. Whether to call model.update() before returning the GRBModel
+    
+    RETURNS
+    -------
+    model:
+        GRBModel to which the complementarity constraint is added.
+    
+    """
+    (n1,n2,nb) = ('','','') if name == '' else (name+"_1",name+"_0",name+"_b")
+    model.addConstr(ee >= 0,name)
+    b = model.addVar(vtype=GRB.BINARY, name=nb)
+    model.addGenConstrIndicator(b, 1, ee == 0, name=n1)
+    model.addGenConstrIndicator(b, 0, vv == 0, name=n2)
+    if triggerUpdate: model.update()
+    return model
 
                                         ######
     #    #    #  #####   #    #   ##### #     #    ##     #####    ##
