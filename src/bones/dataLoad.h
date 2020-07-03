@@ -146,7 +146,7 @@ struct probData {
   double prodGasLin = 37;
   double prodSolLin = 0;
   double prodWindLin = 0;
-  double prodCoalQuad = 0.0075
+  double prodCoalQuad = 0.0075;
   double prodGasQuad = 0.0095;
   double prodSolQuad = 0;
   double prodWindQuad = 0;
