@@ -264,6 +264,8 @@ void cci::writeProbData(const std::string filename, const cci::probData &pd) {
   ff << "c2demSl  " << pd.c2demSl << '\n';
   ff << "c1emitCost  " << pd.c1emitCost << '\n';
   ff << "c2emitCost  " << pd.c2emitCost << '\n';
+  ff << "c1rps  " << pd.c1rps << '\n';
+  ff << "c2rps  " << pd.c2rps << '\n';
   ff.close();
 }
 
@@ -376,6 +378,10 @@ cci::probData cci::readProbData(const std::string filename) {
       ff >> pd.c1emitCost;
     if (name == "c2emitCost")
       ff >> pd.c2emitCost;
+    if (name == "c1rps")
+      ff >> pd.c1rps;
+    if (name == "c2rps")
+      ff >> pd.c2rps;
   };
   while (!ff.eof()) {
     std::string name;

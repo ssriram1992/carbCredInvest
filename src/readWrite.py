@@ -217,7 +217,7 @@ if __name__ == '__main__':
         print("Using the fact that the data is symmetric")
         ci1 = getGurVar(M, epec.locs, ('c1','CarbImp'))
         ci2 = getGurVar(M, epec.locs, ('c2','CarbImp'))
-        M.addConstr(ci1==ci2)
+        # M.addConstr(ci1==ci2)
         M.update()
         M.optimize()
         M.write("./dat/_tempSol.sol")

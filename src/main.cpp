@@ -173,6 +173,12 @@ void solveProb(GRBEnv *env, const cci::probData pd, bool findPne) {
   Country1Par.expCleanMix = pd.c1CleanMix;
   Country2Par.expCleanMix = pd.c2CleanMix;
 
+	Country1Par.rps = pd.c1rps;
+	Country2Par.rps = pd.c2rps;
+
+	BOOST_LOG_TRIVIAL(debug) << pd.c1rps<<" " <<pd.c2rps <<" RPS values << ";
+
+
   c1F1.carbonLimitFrac = pd.c1CreditSplit; // 0.5 * 2;
   c1F2.carbonLimitFrac = pd.c1CreditSplit; // 0.5 * 2;
 

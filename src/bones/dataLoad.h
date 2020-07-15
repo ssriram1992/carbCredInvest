@@ -53,6 +53,8 @@ struct LeadPar {
                              ///< domestic emission and emission by others
   double prodnVal{100};
 
+	double rps{0};					///< Contraint on followers on the percentage of total energy produced that should be green
+
   bool follGenNash{
       false}; ///< Whether the followers have the constraint that the total
               ///< carbon consumed by all the followers together is at most the
@@ -164,22 +166,22 @@ struct probData {
   double c1f1CapCoal = 500;
   double c1f1CapGas = 800;
   double c1f1CapSol = 227.23;
-  double c1f1CapWind = 428.65
+  double c1f1CapWind = 428.65;
 
   double c2f1CapCoal = 500;
   double c2f1CapGas = 800;
   double c2f1CapSol = 227.23;
-  double c2f1CapWind = 428.65
+  double c2f1CapWind = 428.65;
 
   double c1f2CapCoal = 500;
   double c1f2CapGas = 800;
   double c1f2CapSol = 227.23;
-  double c1f2CapWind = 428.65
+  double c1f2CapWind = 428.65;
 
   double c2f2CapCoal = 500;
   double c2f2CapGas = 800;
   double c2f2CapSol = 227.23;
-  double c2f2CapWind = 428.65
+  double c2f2CapWind = 428.65;
 
   bool c1GenNash = 0;
   bool c2GenNash = 0;
@@ -192,4 +194,7 @@ struct probData {
 
   double c1emitCost = 0;
   double c2emitCost = 0;
+
+	double c1rps = 0;
+	double c2rps = 0;
 };

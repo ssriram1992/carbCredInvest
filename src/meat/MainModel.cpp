@@ -216,6 +216,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
   const unsigned int n_Const =
       (Params.LeaderParam.follGenNash ? 1 : 0) + // Generalized Nash constraint
       (n_Dirty + n_Clean) * n_Scen + n_Scen +
+			(Params.LeaderParam.rps > 0? n_Scen:0) +		// Renewable portfolio standard constr
       // (Follparam.carbonLimitFrac >= 1 ? 0 : 1) + // CarbFollLim constraint
       1;
 
@@ -347,6 +348,18 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
   }
 
   for (unsigned int scen = 0; scen < n_Scen; ++scen) {
+    // RPS constraints
+    if (Params.LeaderParam.rps > 0){
+      const double rps = Params.LeaderParam.rps;
+      for (unsigned int ii = 0; ii < n_Dirty; ++ii) {
+        B(constrCount, FollProdDirty + n_Dirty*scen +ii) = rps;
+      }
+      for (unsigned int ii = 0; ii < n_Clean; ++ii) {
+        B(constrCount, FollProdClean + n_Clean*scen +ii) = rps-1;
+      }
+      constrCount++;
+    }
+  
     // Infrastructural limit
     for (unsigned int ii = 0; ii < n_Dirty; ++ii) {
       B(constrCount, FollProdDirty + scen * n_Dirty + ii) = 1;

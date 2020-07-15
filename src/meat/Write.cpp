@@ -309,7 +309,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::writeMNEposns(
     vector<unsigned int> ccPolys = this->mixedStratPoly(cc);
     BOOST_LOG_TRIVIAL(trace) << "Polyhedra for country " << cc;
     // std::for_each(std::begin(ccPolys), std::end(ccPolys),
-                  // [](unsigned int ii) { std::cout << ii << " "; });
+    // [](unsigned int ii) { std::cout << ii << " "; });
     // std::cout << '\n';
     header << cName << "nPoly ";
     positions << ccPolys.size() << " ";
