@@ -37,8 +37,9 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_obj_leader(
   // Total investment cross terms
   for (unsigned int ii = 0; ii < n_Clean; ++ii) {
     for (unsigned int cc = 0; cc < this->getNcountries(); ++cc) {
-      if (cc == i)
-        continue;
+
+      if (cc == i) continue;
+
       QP_obj.C(Loc.at(LeaderVars::TotInv) + ii,
                this->getPosition(cc, cci::LeaderVars::TotInv) + ii -
                    (cc > i ? nThisCountryvars : 0)) =
@@ -53,8 +54,9 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_obj_leader(
   QP_obj.c(Loc.at(LeaderVars::TotEmission)) = Params.LeaderParam.emissionVal;
   // Emission cross terms
   for (unsigned int cc = 0; cc < this->getNcountries(); ++cc) {
-    if (cc == i)
-      continue;
+
+    if (cc == i) continue;
+
     QP_obj.C(Loc.at(LeaderVars::TotEmission),
              this->getPosition(cc, cci::LeaderVars::TotEmission) -
                  (cc > i ? nThisCountryvars : 0)) =
@@ -318,7 +320,9 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_QP(
           if (i_nos < n_Dirty)
             return FollProdDirty + n_Dirty * scen + i_nos;
           else
+
             return FollProdClean + n_Clean * scen + (i_nos - n_Dirty);
+
         };
         const auto pos1 = pos(ii);
         const auto pos2 = pos(jj);
@@ -454,6 +458,7 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_LeadCons(
     for (unsigned int ff = 0; ff < Params.n_followers; ++ff) {
       LeadCons(constrCount, FollVarCount * ff + FollInv + ii) = -1;
     }
+
     LeadCons(constrCount, Loc.at(LeaderVars::TotInv) + ii) = 1;
     constrCount += 1;
   }
@@ -482,7 +487,9 @@ void cci::EPEC<n_Dirty, n_Clean, n_Scen>::make_LL_LeadCons(
         const auto &pt = cleanEnergy.at(ii); // player type
         const auto emitCost = Params.FollowerParam.at(ff).emissionCosts.at(pt);
         LeadCons(constrCount, FollVarCount * ff + FollProdClean +
+
                                   n_Clean * scen + ii) = probab * emitCost;
+
         LeadCons(constrCount + 1,
                  FollVarCount * ff + FollProdClean + n_Clean * scen + ii) =
             -1 * probab * emitCost;
