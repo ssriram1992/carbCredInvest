@@ -1,5 +1,5 @@
 # File name and output name
-EPEC_HOME=/home/sriram/code/EPECstuff/EPECsolve
+EPEC_HOME=/home/sriram/code/EPECsolve
 SRC=$(EPEC_HOME)/src
 OBJ=$(EPEC_HOME)/obj
 
@@ -8,10 +8,12 @@ FILEEPEC=$(OBJ)/LCPtoLP.o $(OBJ)/Games.o $(OBJ)/Utils.o
 ARGS=
 
 # Logging
-BOOST_HOME=/usr/local
-BOOST_LIB_D=$(BOOST_HOME)/lib/libboost_
+# BOOST_HOME=/usr/local
+BOOST_HOME=/home/sriram/Software/boost_1_75_0
+# BOOST_LIB_D=$(BOOST_HOME)/lib/libboost_
+BOOST_LIB_D=$(BOOST_HOME)/stage/lib/libboost_
 BOOSTLIB=$(BOOST_LIB_D)unit_test_framework.a $(BOOST_LIB_D)program_options.a  $(BOOST_LIB_D)log.a $(BOOST_LIB_D)log_setup.a $(BOOST_LIB_D)system.a $(BOOST_LIB_D)thread.a $(BOOST_LIB_D)chrono.a  -lpthread $(BOOST_LIB_D)prg_exec_monitor.a
-BOOSTOPT=
+BOOSTOPT= -I $(BOOST_HOME)
 
 # Armadillo stuff
 ARMA=/opt/armadillo-code
@@ -20,9 +22,9 @@ ARMALIB=-larmadillo
 ARMAOPT=$(ARMAINC) #$(ARMALIB)
 
 # Gurobi stuff
-GUR=/opt/gurobi901/linux64
+GUR=/opt/gurobi911/linux64
 GURINC=-I $(GUR)/include 
-GURLIB= $(GUR)/lib/libgurobi_c++.a $(GUR)/lib/libgurobi90.so -lm  
+GURLIB= $(GUR)/lib/libgurobi_c++.a $(GUR)/lib/libgurobi91.so -lm  
 GUROPT=$(GURINC)
 
 # Generic objects not requiring changes
