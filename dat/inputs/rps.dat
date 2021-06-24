@@ -1,0 +1,6 @@
+prefix rps
+probId 3
+suIn 10
+suSl 0.01
+c1rps 0.7
+c2rps 0.7
